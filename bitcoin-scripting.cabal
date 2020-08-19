@@ -1,0 +1,79 @@
+cabal-version:       2.4
+name:                bitcoin-scripting
+version:             1.0.0
+synopsis:            Resources for working with miniscript, script descriptors, and policies
+homepage:            https://github.com/bitnomial/bitcoin-scripting
+copyright:           2020 Bitnomial, Inc.
+license:             BSD-3-Clause
+license-file:        LICENSE
+author:              Ian Shipman
+maintainer:          ics@gambolingpangolin.com
+category:            Language
+build-type:          Simple
+extra-source-files:  CHANGELOG.md
+
+common base
+  default-language: Haskell2010
+  ghc-options:      -Wall
+  build-depends:
+      base          >=4.12  && <4.15
+    , bytestring    >=0.10  && <0.11
+    , cereal
+    , haskoin-core  >=0.15  && <0.16
+    , text          >=1.2   && <1.3
+
+library
+  import:          base
+  hs-source-dirs:  src
+
+  exposed-modules:
+    Language.Bitcoin.Miniscript
+    Language.Bitcoin.Miniscript.Fragments
+    Language.Bitcoin.Miniscript.Witness
+    Language.Bitcoin.Script.Descriptors
+    Language.Bitcoin.Policy
+    Language.Bitcoin.Script.Utils
+
+  other-modules:
+    Language.Bitcoin.Miniscript.Compiler
+    Language.Bitcoin.Miniscript.Parser
+    Language.Bitcoin.Miniscript.Text
+    Language.Bitcoin.Miniscript.Syntax
+    Language.Bitcoin.Miniscript.Types
+
+    Language.Bitcoin.Script.Descriptors.Parser
+    Language.Bitcoin.Script.Descriptors.Syntax
+    Language.Bitcoin.Script.Descriptors.Text
+
+    Language.Bitcoin.Policy.Parser
+    Language.Bitcoin.Policy.Syntax
+    Language.Bitcoin.Policy.Text
+
+    Language.Bitcoin.Utils
+
+  build-depends:
+      attoparsec
+    , containers         ^>=0.6
+    , transformers       ^>=0.5
+
+test-suite bitcoin-scripting-tests
+  import:          base
+  type:            exitcode-stdio-1.0
+  hs-source-dirs:  test/
+  main-is:         Main.hs
+
+  other-modules:
+    Test.Descriptors
+    Test.Example
+    Test.Miniscript
+    Test.Miniscript.Compiler
+    Test.Miniscript.Examples
+    Test.Miniscript.Types
+    Test.Miniscript.Witness
+    Test.Utils
+
+  build-depends:
+      bitcoin-scripting
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
