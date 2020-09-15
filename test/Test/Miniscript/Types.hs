@@ -1,53 +1,72 @@
--- |
+{-# LANGUAGE OverloadedStrings #-}
 
 module Test.Miniscript.Types
     ( typeCheckerTests
     )  where
 
-import           Haskoin.Util.Arbitrary.Keys           (arbitraryKeyPair)
-import           Haskoin.Util.Arbitrary.Util           (arbitraryBSn)
-import           Test.Tasty                            (TestTree, testGroup)
-import           Test.Tasty.QuickCheck                 (Gen, forAll,
-                                                        testProperty, (===))
+import           Haskoin.Util.Arbitrary.Keys         (arbitraryKeyPair)
+import           Haskoin.Util.Arbitrary.Util         (arbitraryBSn)
+import           Test.Tasty                          (TestTree, testGroup)
+import           Test.Tasty.QuickCheck               (Gen, forAll, testProperty,
+                                                      (===))
 
-import           Language.Bitcoin.Miniscript           (BaseType (..),
-                                                        MiniscriptType (..),
-                                                        typeCheckMiniscript)
-import           Language.Bitcoin.Miniscript.Fragments (PolicyKey (..),
-                                                        bolt3LocalPolicy,
-                                                        bolt3OfferedHTLCPolicy,
-                                                        bolt3ReceivedHTLCPolicy)
-import           Language.Bitcoin.Script.Descriptors   (pubKey)
+import           Language.Bitcoin.Miniscript         (BaseType (..),
+                                                      Miniscript (..),
+                                                      MiniscriptType (..), let_,
+                                                      typeCheckMiniscript)
+import           Language.Bitcoin.Script.Descriptors (KeyDescriptor, pubKey)
+import           Test.Example                        (script)
+import           Test.Miniscript.Examples            (example6, example7,
+                                                      example8)
 
 
 typeCheckerTests :: TestTree
 typeCheckerTests = testGroup "type checker" [localPolicy, offeredPolicy, receivedPolicy]
 
 
-arbitraryPolicyKey :: Gen (PolicyKey a)
-arbitraryPolicyKey = PolicyKey . pubKey . snd <$> arbitraryKeyPair
+arbitraryKey :: Gen KeyDescriptor
+arbitraryKey = pubKey . snd <$> arbitraryKeyPair
 
 
 localPolicy :: TestTree
 localPolicy = testProperty "bolt3 local policy" $
-    forAll arbitraryPolicyKey $ \local ->
-    forAll arbitraryPolicyKey $ \rev ->
+    forAll arbitraryKey $ \local ->
+    forAll arbitraryKey $ \rev ->
     (baseType <$> typeCheckMiniscript mempty (bolt3LocalPolicy local rev)) === Right TypeB
+    where
+    bolt3LocalPolicy loc rev
+        = let_ [ ("key_local", KeyDesc loc)
+               , ("key_revocation", KeyDesc rev)
+               ] $ script example6
 
 
 offeredPolicy :: TestTree
 offeredPolicy = testProperty "bolt 3 offered policy" $
-    forAll arbitraryPolicyKey $ \remote ->
-    forAll arbitraryPolicyKey $ \local ->
-    forAll arbitraryPolicyKey $ \revokation ->
+    forAll arbitraryKey $ \remote ->
+    forAll arbitraryKey $ \local ->
+    forAll arbitraryKey $ \revokation ->
     forAll (arbitraryBSn 32) $ \h ->
     (baseType <$> typeCheckMiniscript mempty (bolt3OfferedHTLCPolicy remote local revokation h)) === Right TypeB
+    where
+    bolt3OfferedHTLCPolicy rmt loc rev h
+        = let_ [ ("key_remote", KeyDesc rmt)
+               , ("key_local", KeyDesc loc)
+               , ("key_revocation", KeyDesc rev)
+               , ("H", Bytes h)
+               ] $ script example7
 
 
 receivedPolicy :: TestTree
 receivedPolicy = testProperty "bolt 3 received policy" $
-    forAll arbitraryPolicyKey $ \remote ->
-    forAll arbitraryPolicyKey $ \local ->
-    forAll arbitraryPolicyKey $ \revokation ->
+    forAll arbitraryKey $ \remote ->
+    forAll arbitraryKey $ \local ->
+    forAll arbitraryKey $ \revokation ->
     forAll (arbitraryBSn 32) $ \h ->
     (baseType <$> typeCheckMiniscript mempty (bolt3ReceivedHTLCPolicy remote local revokation h)) === Right TypeB
+    where
+    bolt3ReceivedHTLCPolicy rmt loc rev h
+        = let_ [ ("key_remote", KeyDesc rmt)
+               , ("key_local", KeyDesc loc)
+               , ("key_revocation", KeyDesc rev)
+               , ("H", Bytes h)
+               ] $ script example8
