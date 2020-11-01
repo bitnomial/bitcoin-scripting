@@ -34,7 +34,6 @@ library
     Language.Bitcoin.Miniscript
     Language.Bitcoin.Miniscript.Witness
     Language.Bitcoin.Script.Descriptors
-    Language.Bitcoin.Policy
     Language.Bitcoin.Script.Utils
 
   other-modules:
@@ -47,10 +46,6 @@ library
     Language.Bitcoin.Script.Descriptors.Parser
     Language.Bitcoin.Script.Descriptors.Syntax
     Language.Bitcoin.Script.Descriptors.Text
-
-    Language.Bitcoin.Policy.Parser
-    Language.Bitcoin.Policy.Syntax
-    Language.Bitcoin.Policy.Text
 
     Language.Bitcoin.Utils
 
