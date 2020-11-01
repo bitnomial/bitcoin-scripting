@@ -3,7 +3,7 @@
 
 module Language.Bitcoin.Miniscript.Witness
     ( satisfy
-    , SatisfactionContext (..)
+    , SatisfactionContext
     , satisfactionContext
     , signature
     , preimage
@@ -12,7 +12,6 @@ module Language.Bitcoin.Miniscript.Witness
     , ChainState (..)
     , emptyChainState
     , Signature (..)
-    , OrdPubKeyI (..)
     , SatisfactionError (..)
     ) where
 
