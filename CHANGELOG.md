@@ -1,5 +1,5 @@
-# Revision history for miniscript-kit
+# Revision history for bitcoin-scripting 
 
-## 1.0.0
+## 0.1.0
 
 First release
