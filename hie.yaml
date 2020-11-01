@@ -1,0 +1,7 @@
+cradle:
+  cabal:
+    - path: "src"
+      component: "lib:bitcoin-scripting"
+
+    - path: "test/"
+      component: "bitcoin-scripting:test:bitcoin-scripting-tests"
