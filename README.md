@@ -1,8 +1,8 @@
-# bitcoin-scripting
+# bitcoin-scripting 0.1.0
 
 ## Disclaimer
 
-This is ALPHA software.  We make no claims to API stability or correctness.  We do encourage input from downstream users! 
+This is **ALPHA** software.  We make no claims to API stability or correctness.  We do encourage input from downstream users! 
 
 ## Overview
 
@@ -13,4 +13,17 @@ This package aims to support application developers working with miniscript, and
 
 ## Development
 
+Hackage hosts our [documentation][hackage].  Be sure to click the "source" links for highlighted source code with links to definitions.  To get started with the repository:
+
+``` bash
+git clone https://github.com/bitnomial/bitcoin-scripting
+cd bitcoin-scripting
+cabal build && cabal test 
+```
+
+This software only builds with `GHC == 8.8.4` and we recommend using [ghcup][ghcup] to manage GHC versions.
+
 Please format using `ormolu` or `fourmolu` (with default configuration).
+
+[hackage]: https://hackage.haskell.org/package/bitcoin-scripting-0.1.0
+[ghcup]: https://gitlab.haskell.org/haskell/ghcup
