@@ -11,3 +11,7 @@ This package aims to support application developers working with miniscript, scr
 * Miniscript: parser, printer, compiler, type checker, and witness calculator
 * Script descriptors: parser and printer
 * Spending policies: parser and printer
+
+## Development
+
+Please format using `ormolu` or `fourmolu` (with default configuration).

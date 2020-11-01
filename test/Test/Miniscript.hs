@@ -1,38 +1,39 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- |
--- Module: Test.Miniscript
---
--- Examples taken from <http://bitcoin.sipa.be/miniscript/>
-module Test.Miniscript
-    ( miniscriptTests
-    ) where
+{- |
+ Module: Test.Miniscript
 
-import           Haskoin.Constants           (btc)
-import           Test.Tasty                  (TestTree, testGroup)
+ Examples taken from <http://bitcoin.sipa.be/miniscript/>
+-}
+module Test.Miniscript (
+    miniscriptTests,
+) where
 
-import           Language.Bitcoin.Miniscript (miniscriptToText, parseMiniscript)
-import           Test.Example                (testTextRep)
-import           Test.Miniscript.Compiler    (compilerTests)
-import           Test.Miniscript.Examples
-import           Test.Miniscript.Types       (typeCheckerTests)
-import           Test.Miniscript.Witness     (witnessTests)
+import Haskoin.Constants (btc)
+import Test.Tasty (TestTree, testGroup)
 
+import Language.Bitcoin.Miniscript (miniscriptToText, parseMiniscript)
+import Test.Example (testTextRep)
+import Test.Miniscript.Compiler (compilerTests)
+import Test.Miniscript.Examples
+import Test.Miniscript.Types (typeCheckerTests)
+import Test.Miniscript.Witness (witnessTests)
 
 miniscriptTests :: TestTree
-miniscriptTests = testGroup "miniscript"
-    [ parsePrintTests
-    , typeCheckerTests
-    , compilerTests
-    , witnessTests
-    ]
-
+miniscriptTests =
+    testGroup
+        "miniscript"
+        [ parsePrintTests
+        , typeCheckerTests
+        , compilerTests
+        , witnessTests
+        ]
 
 parsePrintTests :: TestTree
-parsePrintTests
-    = testGroup "parsing-printing"
-    $ testTextRep (parseMiniscript btc) (miniscriptToText btc) <$> examples
-    where
+parsePrintTests =
+    testGroup "parsing-printing" $
+        testTextRep (parseMiniscript btc) (miniscriptToText btc) <$> examples
+  where
     examples =
         [ example1
         , example2
