@@ -8,7 +8,7 @@ import Data.Bits (clearBit, setBit, testBit)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.Word (Word8)
-import Haskoin.Script (ScriptOp, opPushData)
+import Haskoin (ScriptOp, intToScriptOp, opPushData)
 
 -- | Decode a numeric stack value
 fromCScriptNum :: ByteString -> Int
@@ -33,7 +33,9 @@ toCScriptNum n
     b = BS.snoc b' msb
 
 pushNumber :: Int -> ScriptOp
-pushNumber = opPushData . toCScriptNum
+pushNumber i
+    | i <= 16 = intToScriptOp i
+    | otherwise = opPushData $ toCScriptNum i
 
 intLE :: Int -> (ByteString, Word8)
 intLE = go mempty . abs
