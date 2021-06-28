@@ -1,4 +1,5 @@
 module Language.Bitcoin.Script.Descriptors.Syntax (
+    OutputDescriptor (..),
     ScriptDescriptor (..),
     KeyDescriptor (..),
     Origin (..),
@@ -22,26 +23,37 @@ import Haskoin.Keys (
     exportPubKey,
  )
 
-data ScriptDescriptor
-    = -- | P2SH embed the argument.
-      Sh ScriptDescriptor
-    | -- | P2WSH embed the argument.
-      Wsh ScriptDescriptor
-    | -- | P2PK output for the given public key.
-      Pk KeyDescriptor
-    | -- | P2PKH output for the given public key (use 'Addr' if you only know the pubkey hash).
-      Pkh KeyDescriptor
+-- | High level description for a bitcoin output
+data OutputDescriptor
+    = -- | The output is secured by the given script.
+      ScriptPubKey ScriptDescriptor
+    | -- | P2SH embed the argument.
+      P2SH ScriptDescriptor
     | -- | P2WPKH output for the given compressed pubkey.
-      Wpkh KeyDescriptor
+      P2WPKH KeyDescriptor
+    | -- | P2WSH embed the argument.
+      P2WSH ScriptDescriptor
+    | -- | P2SH-P2WPKH the given compressed pubkey.
+      WrappedWPkh KeyDescriptor
+    | -- | P2SH-P2WSH the given script
+      WrappedWSh ScriptDescriptor
     | -- | An alias for the collection of pk(KEY) and pkh(KEY). If the key is
       -- compressed, it also includes wpkh(KEY) and sh(wpkh(KEY)).
       Combo KeyDescriptor
+    | -- | The script which ADDR expands to.
+      Addr Address
+    deriving (Eq, Show)
+
+-- | High level description of a bitcoin script
+data ScriptDescriptor
+    = -- | Require a signature for this key
+      Pk KeyDescriptor
+    | -- | Require a key matching this hash and a signature for that key
+      Pkh KeyDescriptor
     | -- | k-of-n multisig script.
       Multi Int [KeyDescriptor]
     | -- | k-of-n multisig script with keys sorted lexicographically in the resulting script.
       SortedMulti Int [KeyDescriptor]
-    | -- | the script which ADDR expands to.
-      Addr Address
     | -- | the script whose hex encoding is HEX.
       Raw ByteString
     deriving (Eq, Show)

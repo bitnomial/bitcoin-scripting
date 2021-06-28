@@ -2,7 +2,7 @@
 
 module Language.Bitcoin.Script.Descriptors.Parser (
     parseDescriptor,
-    descriptorParser,
+    outputDescriptorParser,
     parseKeyDescriptor,
     keyDescriptorParser,
 ) where
@@ -36,29 +36,43 @@ import Language.Bitcoin.Utils (
     maybeFail,
  )
 
-parseDescriptor :: Network -> Text -> Either String ScriptDescriptor
-parseDescriptor net = A.parseOnly $ descriptorParser net
+parseDescriptor :: Network -> Text -> Either String OutputDescriptor
+parseDescriptor net = A.parseOnly $ outputDescriptorParser net
 
-descriptorParser :: Network -> Parser ScriptDescriptor
-descriptorParser net =
-    shP <|> wshP <|> pkP <|> pkhP <|> wpkhP <|> comboP <|> rawP <|> addrP
-        <|> multiP
-        <|> sortedMultiP
+outputDescriptorParser :: Network -> Parser OutputDescriptor
+outputDescriptorParser net =
+    spkP
+        <|> shP
+        <|> wpkhP
+        <|> wshP
+        <|> shwpkhP
+        <|> shwshP
+        <|> comboP
+        <|> addrP
   where
-    dp = descriptorParser net
-    kp = keyDescriptorParser net
+    sdP = scriptDescriptorParser net
+    keyP = keyDescriptorParser net
 
-    shP = Sh <$> application "sh" dp
-    wshP = Wsh <$> application "wsh" dp
-    pkP = Pk <$> application "pk" kp
-    pkhP = Pkh <$> application "pkh" kp
-    wpkhP = Wpkh <$> application "wpkh" kp
-    comboP = Combo <$> application "combo" kp
-    rawP = Raw <$> application "raw" hex
+    spkP = ScriptPubKey <$> sdP
+    shP = P2SH <$> application "sh" sdP
+    wshP = P2WSH <$> application "wsh" sdP
+    wpkhP = P2WPKH <$> application "wpkh" keyP
+    shwpkhP = WrappedWPkh <$> (application "sh" . application "wpkh") keyP
+    shwshP = WrappedWSh <$> (application "sh" . application "wsh") sdP
+    comboP = Combo <$> application "combo" keyP
 
     addrP =
         application "addr" (A.manyTill A.anyChar $ A.char ')')
             >>= maybeFail "descriptorParser: unable to parse address" Addr . textToAddr net . pack
+
+scriptDescriptorParser :: Network -> Parser ScriptDescriptor
+scriptDescriptorParser net = pkP <|> pkhP <|> rawP <|> multiP <|> sortedMultiP
+  where
+    kp = keyDescriptorParser net
+
+    rawP = Raw <$> application "raw" hex
+    pkP = Pk <$> application "pk" kp
+    pkhP = Pkh <$> application "pkh" kp
 
     multiP = application "multi" $ Multi <$> A.decimal <*> comma keyList
     sortedMultiP = application "sortedmulti" $ SortedMulti <$> A.decimal <*> comma keyList

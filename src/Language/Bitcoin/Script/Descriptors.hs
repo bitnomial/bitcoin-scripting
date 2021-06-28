@@ -2,6 +2,7 @@
  from <https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md>.
 -}
 module Language.Bitcoin.Script.Descriptors (
+    OutputDescriptor (..),
     ScriptDescriptor (..),
     KeyDescriptor (..),
     Origin (..),
@@ -18,7 +19,7 @@ module Language.Bitcoin.Script.Descriptors (
 
     -- * Parsing
     parseDescriptor,
-    descriptorParser,
+    outputDescriptorParser,
     parseKeyDescriptor,
     keyDescriptorParser,
 ) where
