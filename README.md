@@ -1,4 +1,4 @@
-# bitcoin-scripting 0.1.0
+# bitcoin-scripting 0.2.0
 
 ## Disclaimer
 
@@ -9,7 +9,7 @@ This is **ALPHA** software.  We make no claims to API stability or correctness. 
 This package aims to support application developers working with miniscript, and script descriptors.  The following features are available:
 
 * Miniscript: parser, printer, compiler, type checker, and witness calculator
-* Script descriptors: parser and printer
+* Script descriptors: parser + printer, address and script calculations
 
 ## Development
 
@@ -21,9 +21,9 @@ cd bitcoin-scripting
 cabal build && cabal test 
 ```
 
-This software only builds with `GHC == 8.8.4` and we recommend using [ghcup][ghcup] to manage GHC versions.
+This software only builds with `GHC == 8.10.4` and we recommend using [ghcup][ghcup] to manage GHC versions.
 
 Please format using `ormolu` or `fourmolu` (with default configuration).
 
-[hackage]: https://hackage.haskell.org/package/bitcoin-scripting-0.1.0
+[hackage]: https://hackage.haskell.org/package/bitcoin-scripting-0.2.0
 [ghcup]: https://gitlab.haskell.org/haskell/ghcup
