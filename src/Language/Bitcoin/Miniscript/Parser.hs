@@ -17,7 +17,7 @@ import Language.Bitcoin.Miniscript.Syntax (
     Miniscript (..),
     Value (..),
  )
-import Language.Bitcoin.Script.Descriptors (keyDescriptorParser)
+import Language.Bitcoin.Script.Descriptors.Parser (keyDescriptorParser)
 import Language.Bitcoin.Utils (
     alphanum,
     application,

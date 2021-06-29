@@ -1,47 +1,67 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Language.Bitcoin.Script.Descriptors.Syntax (
+    OutputDescriptor (..),
     ScriptDescriptor (..),
     KeyDescriptor (..),
+    isDefinite,
+    keyAtIndex,
+    keyDescPubKey,
+    keyBytes,
     Origin (..),
     Key (..),
     KeyCollection (..),
     pubKey,
     secKey,
-    keyDescPubKey,
-    keyBytes,
 ) where
 
 import Data.ByteString (ByteString)
-import Haskoin.Address (Address)
-import Haskoin.Keys (
+import Data.Word (Word32)
+import Haskoin (
+    Address,
     DerivPath,
+    DerivPathI ((:/), (:|)),
     Fingerprint,
     PubKeyI (..),
     SecKeyI,
-    XPubKey,
+    XPubKey (xPubKey),
     derivePubKeyI,
+    derivePubPath,
     exportPubKey,
+    toSoft,
  )
 
-data ScriptDescriptor
-    = -- | P2SH embed the argument.
-      Sh ScriptDescriptor
-    | -- | P2WSH embed the argument.
-      Wsh ScriptDescriptor
-    | -- | P2PK output for the given public key.
-      Pk KeyDescriptor
-    | -- | P2PKH output for the given public key (use 'Addr' if you only know the pubkey hash).
-      Pkh KeyDescriptor
+-- | High level description for a bitcoin output
+data OutputDescriptor
+    = -- | The output is secured by the given script.
+      ScriptPubKey ScriptDescriptor
+    | -- | P2SH embed the argument.
+      P2SH ScriptDescriptor
     | -- | P2WPKH output for the given compressed pubkey.
-      Wpkh KeyDescriptor
+      P2WPKH KeyDescriptor
+    | -- | P2WSH embed the argument.
+      P2WSH ScriptDescriptor
+    | -- | P2SH-P2WPKH the given compressed pubkey.
+      WrappedWPkh KeyDescriptor
+    | -- | P2SH-P2WSH the given script
+      WrappedWSh ScriptDescriptor
     | -- | An alias for the collection of pk(KEY) and pkh(KEY). If the key is
       -- compressed, it also includes wpkh(KEY) and sh(wpkh(KEY)).
       Combo KeyDescriptor
+    | -- | The script which ADDR expands to.
+      Addr Address
+    deriving (Eq, Show)
+
+-- | High level description of a bitcoin script
+data ScriptDescriptor
+    = -- | Require a signature for this key
+      Pk KeyDescriptor
+    | -- | Require a key matching this hash and a signature for that key
+      Pkh KeyDescriptor
     | -- | k-of-n multisig script.
       Multi Int [KeyDescriptor]
     | -- | k-of-n multisig script with keys sorted lexicographically in the resulting script.
       SortedMulti Int [KeyDescriptor]
-    | -- | the script which ADDR expands to.
-      Addr Address
     | -- | the script whose hex encoding is HEX.
       Raw ByteString
     deriving (Eq, Show)
@@ -74,6 +94,13 @@ pubKey = KeyDescriptor Nothing . Pubkey
 secKey :: SecKeyI -> KeyDescriptor
 secKey = KeyDescriptor Nothing . SecretKey
 
+-- | For key families, get the key at the given index.  Otherwise, return the input key.
+keyAtIndex :: Word32 -> Key -> Key
+keyAtIndex ix = \case
+    XPub xpub path HardKeys -> XPub xpub (path :| ix) Single
+    XPub xpub path SoftKeys -> XPub xpub (path :/ ix) Single
+    key -> key
+
 -- | Represent whether the key corresponds to a collection (and how) or a single key.
 data KeyCollection
     = Single
@@ -94,4 +121,12 @@ keyDescPubKey :: KeyDescriptor -> Maybe PubKeyI
 keyDescPubKey (KeyDescriptor _ k) = case k of
     Pubkey pk -> Just pk
     SecretKey sk -> Just $ derivePubKeyI sk
+    XPub xpub path Single -> (`PubKeyI` True) . xPubKey . (`derivePubPath` xpub) <$> toSoft path
     _ -> Nothing
+
+-- | Test whether the key descriptor corresponds to a single key
+isDefinite :: KeyDescriptor -> Bool
+isDefinite (KeyDescriptor _ k) = case k of
+    XPub _ _ HardKeys -> False
+    XPub _ _ SoftKeys -> False
+    _ -> True

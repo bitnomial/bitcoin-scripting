@@ -1,7 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 -- |  Various parsing and printing utilities
-module Language.Bitcoin.Utils where
+module Language.Bitcoin.Utils (
+    parens,
+    brackets,
+    application,
+    hex,
+    comma,
+    argList,
+    alphanum,
+    spacePadded,
+    showText,
+    applicationText,
+    requiredContextValue,
+    maybeFail,
+) where
 
 import Control.Applicative ((<|>))
 import Control.Monad (void)

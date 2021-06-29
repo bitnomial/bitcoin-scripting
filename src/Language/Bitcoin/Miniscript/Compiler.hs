@@ -37,7 +37,7 @@ import Language.Bitcoin.Miniscript.Types (
     MiniscriptTypeError (..),
     typeCheckMiniscript,
  )
-import Language.Bitcoin.Script.Descriptors (KeyDescriptor, keyBytes)
+import Language.Bitcoin.Script.Descriptors.Syntax (KeyDescriptor, keyBytes)
 import Language.Bitcoin.Script.Utils (pushNumber)
 import Language.Bitcoin.Utils (requiredContextValue)
 

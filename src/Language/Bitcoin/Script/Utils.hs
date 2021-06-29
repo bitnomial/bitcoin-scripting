@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module Language.Bitcoin.Script.Utils (
     pushNumber,
     toCScriptNum,
@@ -8,15 +10,15 @@ import Data.Bits (clearBit, setBit, testBit)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.Word (Word8)
-import Haskoin.Script (ScriptOp, opPushData)
+import Haskoin (ScriptOp, intToScriptOp, opPushData)
 
 -- | Decode a numeric stack value
 fromCScriptNum :: ByteString -> Int
 fromCScriptNum b
     | BS.null b = 0
-    | msb == 0x80 = negate . fromIntegral $ leWord64 b'
-    | testBit msb 7 = negate . fromIntegral . leWord64 $ BS.snoc b' (clearBit msb 7)
-    | otherwise = fromIntegral $ leWord64 b
+    | msb == 0x80 = negate $ leWord64 b'
+    | testBit msb 7 = negate . leWord64 $ BS.snoc b' (clearBit msb 7)
+    | otherwise = leWord64 b
   where
     Just (b', msb) = BS.unsnoc b
 
@@ -33,7 +35,9 @@ toCScriptNum n
     b = BS.snoc b' msb
 
 pushNumber :: Int -> ScriptOp
-pushNumber = opPushData . toCScriptNum
+pushNumber i
+    | i <= 16 = intToScriptOp i
+    | otherwise = opPushData $ toCScriptNum i
 
 intLE :: Int -> (ByteString, Word8)
 intLE = go mempty . abs

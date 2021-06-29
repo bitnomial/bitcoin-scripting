@@ -15,7 +15,7 @@ import Language.Bitcoin.Miniscript.Syntax (
     Miniscript (..),
     Value (..),
  )
-import Language.Bitcoin.Script.Descriptors (keyDescriptorToText)
+import Language.Bitcoin.Script.Descriptors.Text (keyDescriptorToText)
 import Language.Bitcoin.Utils (applicationText, showText)
 
 miniscriptToText :: Network -> Miniscript -> Text

@@ -35,25 +35,33 @@ import Language.Bitcoin.Utils (
     showText,
  )
 
-descriptorToText :: Network -> ScriptDescriptor -> Text
+descriptorToText :: Network -> OutputDescriptor -> Text
 descriptorToText net = \case
-    Sh x -> applicationText "sh" $ pd x
-    Wsh x -> applicationText "wsh" $ pd x
-    Pk k -> applicationText "pk" $ pk k
-    Pkh k -> applicationText "pkh" $ pk k
-    Wpkh k -> applicationText "wpkh" $ pk k
-    Combo k -> applicationText "combo" $ pk k
+    ScriptPubKey x -> sdToText x
+    P2SH x -> applicationText "sh" $ sdToText x
+    P2WPKH k -> applicationText "wpkh" $ keyToText k
+    P2WSH x -> applicationText "wsh" $ sdToText x
+    WrappedWPkh k -> applicationText "sh" . applicationText "wpkh" $ keyToText k
+    WrappedWSh x -> applicationText "sh" . applicationText "wsh" $ sdToText x
+    Combo k -> applicationText "combo" $ keyToText k
     Addr a -> applicationText "addr" . fromMaybe addrErr $ addrToText net a
-    Raw bs -> applicationText "raw" $ encodeHex bs
-    Multi k ks ->
-        applicationText "multi" . intercalate "," $ showText k : (pk <$> ks)
-    SortedMulti k ks ->
-        applicationText "sortedmulti" . intercalate "," $ showText k : (pk <$> ks)
   where
-    pd = descriptorToText net
-    pk = keyDescriptorToText net
+    sdToText = scriptDescriptorToText net
+    keyToText = keyDescriptorToText net
 
     addrErr = error "Unable to parse address"
+
+scriptDescriptorToText :: Network -> ScriptDescriptor -> Text
+scriptDescriptorToText net = \case
+    Pk k -> applicationText "pk" $ keyToText k
+    Pkh k -> applicationText "pkh" $ keyToText k
+    Raw bs -> applicationText "raw" $ encodeHex bs
+    Multi k ks ->
+        applicationText "multi" . intercalate "," $ showText k : (keyToText <$> ks)
+    SortedMulti k ks ->
+        applicationText "sortedmulti" . intercalate "," $ showText k : (keyToText <$> ks)
+  where
+    keyToText = keyDescriptorToText net
 
 keyDescriptorToText :: Network -> KeyDescriptor -> Text
 keyDescriptorToText net (KeyDescriptor o k) = maybe mempty originText o <> definitionText

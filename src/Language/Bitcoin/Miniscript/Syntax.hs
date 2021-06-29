@@ -30,7 +30,7 @@ import Data.ByteString (ByteString)
 import Data.Foldable (foldr')
 import Data.Text (Text)
 
-import Language.Bitcoin.Script.Descriptors (KeyDescriptor)
+import Language.Bitcoin.Script.Descriptors.Syntax (KeyDescriptor)
 
 data Value a = Variable Text | Lit a
     deriving (Eq, Show, Ord)
