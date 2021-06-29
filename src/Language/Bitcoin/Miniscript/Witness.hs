@@ -51,7 +51,7 @@ import Language.Bitcoin.Miniscript.Syntax (
     Miniscript (..),
     Value (..),
  )
-import Language.Bitcoin.Script.Descriptors (
+import Language.Bitcoin.Script.Descriptors.Syntax (
     KeyDescriptor,
     keyDescPubKey,
  )
