@@ -16,7 +16,7 @@ tested-with: GHC == 8.10.4
 
 common base
   default-language: Haskell2010
-  ghc-options: -Wall -Werror
+  ghc-options: -Wall -Wunused-packages -Werror
   build-depends:
       base >=4.12 && <4.16
     , bytestring >=0.10 && <0.12
@@ -44,6 +44,7 @@ library
     Language.Bitcoin.Script.Descriptors.Parser
     Language.Bitcoin.Script.Descriptors.Syntax
     Language.Bitcoin.Script.Descriptors.Text
+    Language.Bitcoin.Script.Descriptors.Utils
 
     Language.Bitcoin.Utils
 
@@ -60,6 +61,7 @@ test-suite bitcoin-scripting-tests
 
   other-modules:
     Test.Descriptors
+    Test.Descriptors.Utils
     Test.Example
     Test.Miniscript
     Test.Miniscript.Compiler

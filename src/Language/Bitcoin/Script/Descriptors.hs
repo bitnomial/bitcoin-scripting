@@ -2,15 +2,20 @@
  from <https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md>.
 -}
 module Language.Bitcoin.Script.Descriptors (
+    -- * Descriptors
     OutputDescriptor (..),
     ScriptDescriptor (..),
+
+    -- * Keys
     KeyDescriptor (..),
     Origin (..),
     Key (..),
     KeyCollection (..),
+    isDefinite,
+    keyAtIndex,
+    keyDescPubKey,
     pubKey,
     secKey,
-    keyDescPubKey,
     keyBytes,
 
     -- * Text representation
@@ -22,8 +27,13 @@ module Language.Bitcoin.Script.Descriptors (
     outputDescriptorParser,
     parseKeyDescriptor,
     keyDescriptorParser,
+
+    -- * Conversions
+    descriptorAddresses,
+    compile,
 ) where
 
 import Language.Bitcoin.Script.Descriptors.Parser
 import Language.Bitcoin.Script.Descriptors.Syntax
 import Language.Bitcoin.Script.Descriptors.Text
+import Language.Bitcoin.Script.Descriptors.Utils

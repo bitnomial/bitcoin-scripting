@@ -26,13 +26,14 @@ import Language.Bitcoin.Script.Descriptors (
     descriptorToText,
     parseDescriptor,
  )
-
+import Test.Descriptors.Utils (testDescriptorUtils)
 import Test.Example (Example (..), testTextRep)
 
 descriptorTests :: TestTree
 descriptorTests =
     testGroup "descriptor tests" $
-        testTextRep (parseDescriptor btc) (descriptorToText btc) <$> examples
+        (testTextRep (parseDescriptor btc) (descriptorToText btc) <$> examples)
+            <> [testDescriptorUtils]
   where
     examples =
         [ example1

@@ -1,26 +1,34 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Language.Bitcoin.Script.Descriptors.Syntax (
     OutputDescriptor (..),
     ScriptDescriptor (..),
     KeyDescriptor (..),
+    isDefinite,
+    keyAtIndex,
+    keyDescPubKey,
+    keyBytes,
     Origin (..),
     Key (..),
     KeyCollection (..),
     pubKey,
     secKey,
-    keyDescPubKey,
-    keyBytes,
 ) where
 
 import Data.ByteString (ByteString)
-import Haskoin.Address (Address)
-import Haskoin.Keys (
+import Data.Word (Word32)
+import Haskoin (
+    Address,
     DerivPath,
+    DerivPathI ((:/), (:|)),
     Fingerprint,
     PubKeyI (..),
     SecKeyI,
-    XPubKey,
+    XPubKey (xPubKey),
     derivePubKeyI,
+    derivePubPath,
     exportPubKey,
+    toSoft,
  )
 
 -- | High level description for a bitcoin output
@@ -86,6 +94,13 @@ pubKey = KeyDescriptor Nothing . Pubkey
 secKey :: SecKeyI -> KeyDescriptor
 secKey = KeyDescriptor Nothing . SecretKey
 
+-- | For key families, get the key at the given index.  Otherwise, return the input key.
+keyAtIndex :: Word32 -> Key -> Key
+keyAtIndex ix = \case
+    XPub xpub path HardKeys -> XPub xpub (path :| ix) Single
+    XPub xpub path SoftKeys -> XPub xpub (path :/ ix) Single
+    key -> key
+
 -- | Represent whether the key corresponds to a collection (and how) or a single key.
 data KeyCollection
     = Single
@@ -106,4 +121,12 @@ keyDescPubKey :: KeyDescriptor -> Maybe PubKeyI
 keyDescPubKey (KeyDescriptor _ k) = case k of
     Pubkey pk -> Just pk
     SecretKey sk -> Just $ derivePubKeyI sk
+    XPub xpub path Single -> (`PubKeyI` True) . xPubKey . (`derivePubPath` xpub) <$> toSoft path
     _ -> Nothing
+
+-- | Test whether the key descriptor corresponds to a single key
+isDefinite :: KeyDescriptor -> Bool
+isDefinite (KeyDescriptor _ k) = case k of
+    XPub _ _ HardKeys -> False
+    XPub _ _ SoftKeys -> False
+    _ -> True
