@@ -16,7 +16,18 @@ tested-with: GHC == 8.10.4
 
 common base
   default-language: Haskell2010
-  ghc-options: -Wall -Wunused-packages -Werror
+  ghc-options:
+    -Wall
+    -Widentities
+    -Wincomplete-uni-patterns
+    -Wincomplete-record-updates
+    -Wpartial-fields
+    -Wmissing-export-lists
+    -Wmissing-home-modules
+    -Wunused-packages
+    -Wno-unused-do-bind
+    -Werror
+    -funbox-strict-fields
   build-depends:
       base >=4.12 && <4.16
     , bytestring >=0.10 && <0.12

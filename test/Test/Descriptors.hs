@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 -- | We took these examples from <https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md>
 module Test.Descriptors (

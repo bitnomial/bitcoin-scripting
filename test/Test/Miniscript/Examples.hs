@@ -1,6 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Test.Miniscript.Examples where
+module Test.Miniscript.Examples (
+    example1,
+    example2,
+    example3,
+    example4,
+    example5,
+    example6,
+    example7,
+    example8,
+    example9,
+    example10,
+) where
 
 import Data.Text (Text)
 import Language.Bitcoin.Miniscript (
