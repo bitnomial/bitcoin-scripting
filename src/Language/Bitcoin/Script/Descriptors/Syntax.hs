@@ -5,7 +5,6 @@ module Language.Bitcoin.Script.Descriptors.Syntax (
     ScriptDescriptor (..),
     KeyDescriptor (..),
     isDefinite,
-    keyAtIndex,
     keyDescPubKey,
     keyBytes,
     Origin (..),
@@ -16,11 +15,9 @@ module Language.Bitcoin.Script.Descriptors.Syntax (
 ) where
 
 import Data.ByteString (ByteString)
-import Data.Word (Word32)
 import Haskoin (
     Address,
     DerivPath,
-    DerivPathI ((:/), (:|)),
     Fingerprint,
     PubKeyI (..),
     SecKeyI,
@@ -93,13 +90,6 @@ pubKey = KeyDescriptor Nothing . Pubkey
 -- | Simple explicit secret key with no origin information
 secKey :: SecKeyI -> KeyDescriptor
 secKey = KeyDescriptor Nothing . SecretKey
-
--- | For key families, get the key at the given index.  Otherwise, return the input key.
-keyAtIndex :: Word32 -> Key -> Key
-keyAtIndex ix = \case
-    XPub xpub path HardKeys -> XPub xpub (path :| ix) Single
-    XPub xpub path SoftKeys -> XPub xpub (path :/ ix) Single
-    key -> key
 
 -- | Represent whether the key corresponds to a collection (and how) or a single key.
 data KeyCollection

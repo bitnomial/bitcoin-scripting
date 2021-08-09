@@ -1,6 +1,6 @@
 cabal-version:       2.4
 name:                bitcoin-scripting
-version:             0.2.0
+version:             0.2.1
 synopsis:            Resources for working with miniscript, and script descriptors
 homepage:            https://github.com/bitnomial/bitcoin-scripting
 copyright:           2020 Bitnomial, Inc.

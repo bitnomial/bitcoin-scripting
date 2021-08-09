@@ -4,7 +4,9 @@
 module Language.Bitcoin.Script.Descriptors (
     -- * Descriptors
     OutputDescriptor (..),
+    outputDescriptorAtIndex,
     ScriptDescriptor (..),
+    scriptDescriptorAtIndex,
 
     -- * Keys
     KeyDescriptor (..),
@@ -13,6 +15,7 @@ module Language.Bitcoin.Script.Descriptors (
     KeyCollection (..),
     isDefinite,
     keyAtIndex,
+    keyDescriptorAtIndex,
     keyDescPubKey,
     pubKey,
     secKey,
@@ -31,6 +34,10 @@ module Language.Bitcoin.Script.Descriptors (
     -- * Conversions
     descriptorAddresses,
     compile,
+
+    -- * Utilities
+    txWeight,
+    estimateTxSize,
 ) where
 
 import Language.Bitcoin.Script.Descriptors.Parser
