@@ -221,7 +221,7 @@ example14 =
         }
   where
     Just xpub = xPubImport btc "xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL"
-    fp = 0xd34db33f
+    fp = "d34db33f"
 
 example15 :: Example OutputDescriptor
 example15 =

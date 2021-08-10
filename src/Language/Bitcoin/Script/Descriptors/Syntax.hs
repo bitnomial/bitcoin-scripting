@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Language.Bitcoin.Script.Descriptors.Syntax (
     OutputDescriptor (..),
     ScriptDescriptor (..),

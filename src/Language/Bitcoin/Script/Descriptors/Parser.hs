@@ -14,13 +14,14 @@ import Data.Bool (bool)
 import qualified Data.ByteString as BS
 import Data.Maybe (isJust)
 import Data.Text (Text, pack)
-import Haskoin.Address (textToAddr)
-import Haskoin.Constants (Network)
-import Haskoin.Keys (
+import Haskoin (
     DerivPath,
     DerivPathI (..),
+    Network,
     fromWif,
     importPubKey,
+    textToAddr,
+    textToFingerprint,
     wrapPubKey,
     xPubImport,
  )
@@ -85,7 +86,11 @@ parseKeyDescriptor net = A.parseOnly $ keyDescriptorParser net
 keyDescriptorParser :: Network -> Parser KeyDescriptor
 keyDescriptorParser net = KeyDescriptor <$> originP <*> keyP
   where
-    originP = optional . brackets $ Origin <$> A.hexadecimal <*> pathP
+    originP = optional . brackets $ Origin <$> fingerprintP <*> pathP
+
+    fingerprintP =
+        A.take 8
+            >>= either fail pure . textToFingerprint
 
     keyP = pubP <|> wifP <|> XPub <$> xpubP <*> pathP <*> famP
 
