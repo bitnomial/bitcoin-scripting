@@ -10,29 +10,45 @@ import Data.List (sort)
 import Data.Maybe (mapMaybe)
 import Data.Serialize (encode)
 import Haskoin (
+    DerivPath,
+    DerivPathI (..),
     PubKeyI (PubKeyI),
     Script (Script),
     ScriptOp (..),
+    XPubKey,
+    btc,
     btcRegTest,
     derivePubKey,
     opPushData,
     ripemd160,
     secKey,
     textToAddr,
+    xPubImport,
  )
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
 
 import Language.Bitcoin.Script.Descriptors (
+    Key (XPub),
+    KeyCollection (..),
+    KeyDescriptor (KeyDescriptor),
     OutputDescriptor (..),
     ScriptDescriptor (..),
     compile,
     descriptorAddresses,
+    keyDescriptorAtIndex,
+    outputDescriptorAtIndex,
     pubKey,
  )
 
 testDescriptorUtils :: TestTree
-testDescriptorUtils = testGroup "descriptor utils" [testCompile, testAddresses]
+testDescriptorUtils =
+    testGroup
+        "descriptor utils"
+        [ testCompile
+        , testAddresses
+        , testKeyAtIndex
+        ]
 
 -- Address tests generated using @bitcoin-cli deriveaddresses@
 testAddresses :: TestTree
@@ -46,6 +62,14 @@ testAddresses =
         , testWrappedWPhk
         , testWrappedWSh
         , testCombo
+        ]
+
+testKeyAtIndex :: TestTree
+testKeyAtIndex =
+    testGroup
+        "keyAtIndex"
+        [ testKeyDescriptorAtIndex
+        , testOutputDescriptorAtIndex
         ]
 
 testP2PKH :: TestTree
@@ -129,8 +153,50 @@ testSortedMulti = testCase "SortedMulti" $ compile example @?= Just expected
     ks = take 3 testPubKeys
     [k0, k1, k2] = sort $ encode <$> ks
 
+testKeyDescriptorAtIndex :: TestTree
+testKeyDescriptorAtIndex = testCase "keyDescriptorAtIndex" $ do
+    keyDescriptorAtIndex 5 keyFamA @?= keyA
+    keyDescriptorAtIndex 5 keyFamB @?= keyB
+    keyDescriptorAtIndex 5 keyC @?= keyC
+  where
+    keyFamA = KeyDescriptor Nothing $ XPub someXPubA basePath HardKeys
+    keyA = KeyDescriptor Nothing $ XPub someXPubA (basePath :| 5) Single
+
+    keyFamB = KeyDescriptor Nothing $ XPub someXPubA basePath SoftKeys
+    keyB = KeyDescriptor Nothing $ XPub someXPubA (basePath :/ 5) Single
+
+    keyC = KeyDescriptor Nothing $ XPub someXPubA basePath Single
+
+testOutputDescriptorAtIndex :: TestTree
+testOutputDescriptorAtIndex = testCase "outputDescriptorAtIndex" $ do
+    outputDescriptorAtIndex 5 descFamA @?= descA
+    outputDescriptorAtIndex 5 descFamB @?= descB
+    outputDescriptorAtIndex 5 descFamC @?= descC
+  where
+    descFamA = P2SH $ SortedMulti 2 [keyFamA, keyFamB]
+    descA = P2SH $ SortedMulti 2 [keyA, keyB]
+
+    descFamB = P2WSH $ Pkh keyFamB
+    descB = P2WSH $ Pkh keyB
+
+    descFamC = P2WPKH keyFamA
+    descC = P2WPKH keyA
+
+    keyFamA = KeyDescriptor Nothing $ XPub someXPubA basePath HardKeys
+    keyA = KeyDescriptor Nothing $ XPub someXPubA (basePath :| 5) Single
+
+    keyFamB = KeyDescriptor Nothing $ XPub someXPubB basePath HardKeys
+    keyB = KeyDescriptor Nothing $ XPub someXPubB (basePath :| 5) Single
+
 key0 :: PubKeyI
 testPubKeys :: [PubKeyI]
 testPubKeys@(key0 : _) = (`PubKeyI` True) . derivePubKey <$> mapMaybe (secKey . mkSecKey) [1 .. 255]
   where
     mkSecKey i = BS.pack $ replicate 31 0 <> [i]
+
+someXPubA, someXPubB :: XPubKey
+Just someXPubA = xPubImport btc "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
+Just someXPubB = xPubImport btc "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
+
+basePath :: DerivPath
+basePath = Deriv :| 1500
