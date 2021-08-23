@@ -20,6 +20,8 @@ module Language.Bitcoin.Script.Descriptors (
     pubKey,
     secKey,
     keyBytes,
+    outputDescriptorPubKeys,
+    scriptDescriptorPubKeys,
 
     -- * Text representation
     descriptorToText,
@@ -34,10 +36,12 @@ module Language.Bitcoin.Script.Descriptors (
     -- * Conversions
     descriptorAddresses,
     compile,
+    TransactionScripts (..),
+    outputDescriptorScripts,
 
-    -- * Utilities
-    txWeight,
-    estimateTxSize,
+    -- * PSBT
+    toPsbtInput,
+    PsbtInputError (..),
 ) where
 
 import Language.Bitcoin.Script.Descriptors.Parser

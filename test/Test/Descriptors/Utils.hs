@@ -1,3 +1,4 @@
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
@@ -6,27 +7,49 @@ module Test.Descriptors.Utils (
 ) where
 
 import qualified Data.ByteString as BS
+import Data.Bytes.Put (runPutS)
+import Data.Bytes.Serial (serialize)
+import qualified Data.HashMap.Strict as HM
 import Data.List (sort)
 import Data.Maybe (mapMaybe)
 import Data.Serialize (encode)
 import Haskoin (
     DerivPath,
     DerivPathI (..),
+    OutPoint (OutPoint),
     PubKeyI (PubKeyI),
     Script (Script),
     ScriptOp (..),
+    ScriptOutput (..),
     XPubKey,
+    addressHash,
     btc,
     btcRegTest,
+    buildTx,
     derivePubKey,
+    derivePubPath,
+    emptyInput,
+    encodeOutput,
+    inputHDKeypaths,
+    inputRedeemScript,
+    inputWitnessScript,
+    nonWitnessUtxo,
     opPushData,
+    pathToList,
     ripemd160,
     secKey,
     textToAddr,
+    toP2SH,
+    toP2WSH,
+    toSoft,
+    txOut,
+    witnessUtxo,
+    xPubFP,
     xPubImport,
+    xPubKey,
  )
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.HUnit (testCase, (@?=))
+import Test.Tasty.HUnit (testCase, testCaseSteps, (@?=))
 
 import Language.Bitcoin.Script.Descriptors (
     Key (XPub),
@@ -39,6 +62,7 @@ import Language.Bitcoin.Script.Descriptors (
     keyDescriptorAtIndex,
     outputDescriptorAtIndex,
     pubKey,
+    toPsbtInput,
  )
 
 testDescriptorUtils :: TestTree
@@ -48,6 +72,7 @@ testDescriptorUtils =
         [ testCompile
         , testAddresses
         , testKeyAtIndex
+        , testToPsbtInput
         ]
 
 -- Address tests generated using @bitcoin-cli deriveaddresses@
@@ -187,6 +212,97 @@ testOutputDescriptorAtIndex = testCase "outputDescriptorAtIndex" $ do
 
     keyFamB = KeyDescriptor Nothing $ XPub someXPubB basePath HardKeys
     keyB = KeyDescriptor Nothing $ XPub someXPubB (basePath :| 5) Single
+
+testToPsbtInput :: TestTree
+testToPsbtInput = testCaseSteps "toPsbtInput" $ \step -> do
+    step "P2PKH"
+    toPsbtInput p2pkhTx 0 p2pkhDescriptor @?= Right expectedP2pkhInput
+
+    step "P2SH-MS"
+    toPsbtInput p2shMsTx 0 p2shMsDescriptor @?= Right expectedP2shMsInput
+
+    step "P2SH-WPKH"
+    toPsbtInput p2shWpkhTx 0 p2shWpkhDescriptor @?= Right expectedP2shWpkhInput
+
+    step "P2SH-WSH-MS"
+    toPsbtInput p2shWshMsTx 0 p2shWshMsDescriptor @?= Right expectedP2shWshMsInput
+
+    step "P2WPKH"
+    toPsbtInput wpkhTx 0 wpkhDescriptor @?= Right expectedWpkhInput
+
+    step "P2WSH-MS"
+    toPsbtInput wshMsTx 0 wshMsDescriptor @?= Right expectedWshMsInput
+  where
+    p2pkhTx = buildTx [outPoint] [(PayPKHash hashA, 1_000_000)]
+    p2pkhDescriptor = ScriptPubKey $ Pkh keyA
+    expectedP2pkhInput =
+        emptyInput
+            { nonWitnessUtxo = Just p2pkhTx
+            , inputHDKeypaths = hdKeypathA
+            }
+
+    p2shMsTx = buildTx [outPoint] [(msScriptOutput, 1_000_000)]
+    p2shMsDescriptor = P2SH msDescriptor
+    expectedP2shMsInput =
+        emptyInput
+            { nonWitnessUtxo = Just p2shMsTx
+            , inputRedeemScript = Just $ encodeOutput msScriptOutput
+            , inputHDKeypaths = hdKeypathA <> hdKeypathB
+            }
+    msScriptOutput = PayMulSig [pubKeyA, pubKeyB] 1
+    msDescriptor = Multi 1 [keyA, keyB]
+
+    keyA = KeyDescriptor Nothing $ XPub someXPubA path Single
+    pubKeyA = (`PubKeyI` True) . xPubKey $ derivePubPath softPath someXPubA
+    hashA = addressHash . runPutS $ serialize pubKeyA
+    hdKeypathA = HM.singleton pubKeyA (xPubFP someXPubA, pathToList path)
+
+    keyB = KeyDescriptor Nothing $ XPub someXPubB path Single
+    pubKeyB = (`PubKeyI` True) . xPubKey $ derivePubPath softPath someXPubB
+    hdKeypathB = HM.singleton pubKeyB (xPubFP someXPubB, pathToList path)
+
+    p2shWpkhDescriptor = WrappedWPkh keyA
+    p2shWpkhTx = buildTx [outPoint] [(p2shWpkhScriptOutput, 1_000_000)]
+    expectedP2shWpkhInput =
+        emptyInput
+            { witnessUtxo = Just $ (head . txOut) p2shWpkhTx
+            , inputRedeemScript = Just $ encodeOutput wpkhScriptOutputA
+            , inputHDKeypaths = hdKeypathA
+            }
+    p2shWpkhScriptOutput = toP2SH $ encodeOutput wpkhScriptOutputA
+    wpkhScriptOutputA = PayWitnessPKHash hashA
+
+    p2shWshMsTx = buildTx [outPoint] [(p2shWshMsOutput, 1_000_000)]
+    p2shWshMsDescriptor = WrappedWSh msDescriptor
+    expectedP2shWshMsInput =
+        emptyInput
+            { witnessUtxo = Just $ (head . txOut) p2shWshMsTx
+            , inputRedeemScript = Just $ encodeOutput wshMsOutput
+            , inputWitnessScript = Just $ encodeOutput msScriptOutput
+            , inputHDKeypaths = hdKeypathA <> hdKeypathB
+            }
+    p2shWshMsOutput = toP2SH $ encodeOutput wshMsOutput
+    wshMsOutput = toP2WSH $ encodeOutput msScriptOutput
+
+    wpkhTx = buildTx [outPoint] [(PayWitnessPKHash hashA, 1_000_000)]
+    wpkhDescriptor = P2WPKH keyA
+    expectedWpkhInput =
+        emptyInput
+            { witnessUtxo = Just . head $ txOut wpkhTx
+            , inputHDKeypaths = hdKeypathA
+            }
+    wshMsTx = buildTx [outPoint] [(wshMsOutput, 1_000_000)]
+    wshMsDescriptor = P2WSH msDescriptor
+    expectedWshMsInput =
+        emptyInput
+            { witnessUtxo = Just $ (head . txOut) wshMsTx
+            , inputWitnessScript = Just $ encodeOutput msScriptOutput
+            , inputHDKeypaths = hdKeypathA <> hdKeypathB
+            }
+
+    outPoint = OutPoint "0000000000000000000000000000000000000000000000000000000000000000" 0
+    path = Deriv :/ 1 :: DerivPath
+    Just softPath = toSoft path
 
 key0 :: PubKeyI
 testPubKeys :: [PubKeyI]
