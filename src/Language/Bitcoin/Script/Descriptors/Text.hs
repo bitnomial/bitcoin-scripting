@@ -7,27 +7,23 @@ module Language.Bitcoin.Script.Descriptors.Text (
     keyDescriptorToText,
 ) where
 
-import Data.ByteString.Builder (
-    toLazyByteString,
-    word32BE,
- )
-import Data.ByteString.Lazy (toStrict)
 import Data.Maybe (fromMaybe)
 import Data.Text (
     Text,
     intercalate,
     pack,
  )
-import Haskoin.Address (addrToText)
-import Haskoin.Constants (Network)
-import Haskoin.Keys (
+import Haskoin (
+    Network,
     PubKeyI (..),
+    addrToText,
+    encodeHex,
     exportPubKey,
+    fingerprintToText,
     pathToStr,
     toWif,
     xPubExport,
  )
-import Haskoin.Util (encodeHex)
 
 import Language.Bitcoin.Script.Descriptors.Syntax
 import Language.Bitcoin.Utils (
@@ -66,7 +62,7 @@ scriptDescriptorToText net = \case
 keyDescriptorToText :: Network -> KeyDescriptor -> Text
 keyDescriptorToText net (KeyDescriptor o k) = maybe mempty originText o <> definitionText
   where
-    originText (Origin fp path) = "[" <> fingerprintText fp <> pack (pathToStr path) <> "]"
+    originText (Origin fp path) = "[" <> fingerprintToText fp <> pack (pathToStr path) <> "]"
 
     definitionText = case k of
         Pubkey (PubKeyI key c) -> encodeHex $ exportPubKey c key
@@ -77,5 +73,3 @@ keyDescriptorToText net (KeyDescriptor o k) = maybe mempty originText o <> defin
         Single -> ""
         HardKeys -> "/*'"
         SoftKeys -> "/*"
-
-    fingerprintText = encodeHex . toStrict . toLazyByteString . word32BE

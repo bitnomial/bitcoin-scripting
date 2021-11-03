@@ -3,7 +3,8 @@
 ## 0.2.1
 
 * Adds functions to specialize key family descriptors in output (and script) descriptors to a particular index
-* Adds functions for estimating transaction size
+* Adds function for building a PSBT input
+* Adds function for calculating various script fragments associated with a descriptor
 
 ## 0.2.0
 

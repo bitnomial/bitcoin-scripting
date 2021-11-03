@@ -1,173 +1,99 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 
+{- |
+Module: Language.Bitcoin.Script.Descriptors.Utils
+Stability: experimental
+-}
 module Language.Bitcoin.Script.Descriptors.Utils (
     -- * Conversions
     descriptorAddresses,
     compile,
 
-    -- * Transaction size
-    estimateTxSize,
-    txWeight,
+    -- * Transaction pieces
+    TransactionScripts (..),
+    outputDescriptorScripts,
 
     -- * Script families
     keyAtIndex,
     keyDescriptorAtIndex,
     scriptDescriptorAtIndex,
     outputDescriptorAtIndex,
+
+    -- * Pub keys
+    outputDescriptorPubKeys,
+    scriptDescriptorPubKeys,
+
+    -- * PSBT
+    toPsbtInput,
+    PsbtInputError (..),
 ) where
 
-import Control.Monad (replicateM, zipWithM)
-import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Except (Except, runExcept, throwE)
-import Control.Monad.Trans.State.Strict (StateT, get, put, runStateT)
-import Data.Bifunctor (second)
-import qualified Data.ByteString as BS
+import Control.Applicative ((<|>))
+import Control.Exception (Exception)
+import Data.Functor ((<&>))
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HM
 import Data.List (sortOn)
-import Data.Maybe (mapMaybe, maybeToList)
+import Data.Maybe (fromMaybe, mapMaybe, maybeToList)
 import Data.Serialize (decode, encode)
+import qualified Data.Serialize as S
 import Data.Word (Word32)
 import Haskoin (
     Address,
+    DerivPath,
     DerivPathI ((:/), (:|)),
-    Hash160,
+    Fingerprint,
+    Input,
     KeyIndex,
     PubKeyI (..),
     Script,
     ScriptOutput (..),
-    SecKey,
-    SigInput (SigInput),
     Tx,
-    TxIn,
     addressHash,
-    btc,
-    derivePubKey,
     eitherToMaybe,
+    emptyInput,
     encodeOutput,
+    inputHDKeypaths,
+    inputRedeemScript,
+    inputWitnessScript,
+    nonWitnessUtxo,
+    pathToList,
     payToNestedScriptAddress,
     payToScriptAddress,
     payToWitnessScriptAddress,
-    prevOutput,
     pubKeyAddr,
     pubKeyCompatWitnessAddr,
     pubKeyCompressed,
     pubKeyWitnessAddr,
-    secKey,
-    sigHashAll,
     sortMulSig,
     toP2SH,
     toP2WSH,
-    txIn,
-    txWitness,
+    txOut,
+    witnessUtxo,
+    xPubFP,
+    (++/),
  )
-import Haskoin.Transaction.Builder.Sign (signTx)
 
-import qualified Language.Bitcoin.Miniscript as M
+import qualified Language.Bitcoin.Miniscript.Compiler as M (
+    compile,
+ )
+import qualified Language.Bitcoin.Miniscript.Syntax as M (
+    key,
+    keyH,
+    multi,
+ )
 import Language.Bitcoin.Script.Descriptors.Syntax (
     Key (XPub),
     KeyCollection (..),
-    KeyDescriptor (keyDef),
+    KeyDescriptor (KeyDescriptor, keyDef),
     OutputDescriptor (..),
     ScriptDescriptor (..),
+    derivation,
+    fingerprint,
     keyBytes,
     keyDescPubKey,
  )
-
-{- | Estimate the final size of the signed transaction by creating a mock signed transaction with the
- same output types, when possible.  We assume that the list of 'OutputDescriptor' values is the
- list of inputs and ignore the 'txIn' field of the input 'Tx'.  This function
- fails on 'ScriptPubKey', 'Combo', and 'Addr' inputs.
--}
-estimateTxSize :: [OutputDescriptor] -> Tx -> Either String Int
--- TODO Calculate tx size bounds directly
-estimateTxSize inputs tx = do
-    (sigInputs, ks) <- runExcept . runMockState mockSecKeys $ zipWithM mockSigInput (txIn tx) inputs
-    txWeight <$> signTx btc tx sigInputs ks
-
-{- | Calculate the weight of a transaction.  See
- <https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#transaction-size-calculations>
--}
-txWeight :: Tx -> Int
-txWeight tx =
-    3 * baseWeight + totalWeight
-  where
-    totalWeight = (BS.length . encode) tx
-    baseWeight = (BS.length . encode) baseTx
-    baseTx = tx{txWitness = mempty}
-
--- | In order to reduce estimation bias we use as many keys as possible, tracking them in this structure
-data MockState = MockState
-    { usedKeys :: [SecKey]
-    , unusedKeys :: [SecKey]
-    }
-    deriving (Eq, Show)
-
-runMockState :: Functor m => [SecKey] -> StateT MockState m a -> m (a, [SecKey])
-runMockState ks go = second usedKeys <$> runStateT go (MockState mempty ks)
-
--- | Get the next available unused key
-useKey :: StateT MockState (Except String) SecKey
-useKey =
-    get >>= \case
-        s@MockState{unusedKeys = k : ks, usedKeys = uks} -> do
-            put s{usedKeys = k : uks, unusedKeys = ks}
-            pure k
-        _ -> lift $ throwE "Key list exhausted"
-
-usePubKey :: StateT MockState (Except String) PubKeyI
-usePubKey = (`PubKeyI` True) . derivePubKey <$> useKey
-
--- | Create signing data for a mock version of the given output descriptor
-mockSigInput ::
-    TxIn ->
-    OutputDescriptor ->
-    StateT MockState (Except String) (SigInput, Bool)
-mockSigInput theTxIn = \case
-    ScriptPubKey{} -> lift $ throwE "ScriptPubKey"
-    P2SH script -> do
-        rs <- redeemScript script
-        mkSigInput (toP2SH $ encodeOutput rs) (Just rs) False
-    P2WPKH{} -> do
-        h <- keyHash <$> usePubKey
-        mkSigInput (PayWitnessPKHash h) Nothing False
-    P2WSH script -> do
-        rs <- redeemScript script
-        mkSigInput (toP2WSH $ encodeOutput rs) (Just rs) False
-    WrappedWPkh{} -> do
-        h <- keyHash <$> usePubKey
-        mkSigInput (PayWitnessPKHash h) Nothing True
-    WrappedWSh script -> do
-        rs <- redeemScript script
-        mkSigInput (toP2WSH $ encodeOutput rs) (Just rs) True
-    Combo{} -> lift $ throwE "Combo"
-    Addr{} -> lift $ throwE "Addr"
-  where
-    mkSigInput theScript theRedeemScript isNestedWitness =
-        pure
-            ( SigInput theScript 1_0000_0000 (prevOutput theTxIn) sigHashAll theRedeemScript
-            , isNestedWitness
-            )
-
--- Hash used for P2PKH, P2WPKH etc.
-keyHash :: PubKeyI -> Hash160
-keyHash = addressHash . encode
-
--- | For script-hash spends, calculate the redeem script
-redeemScript :: ScriptDescriptor -> StateT MockState (Except String) ScriptOutput
-redeemScript = \case
-    Pk{} -> PayPK <$> usePubKey
-    Pkh{} -> PayPKHash . keyHash <$> usePubKey
-    Multi k ks -> PayMulSig <$> getPubKeys (length ks) <*> pure k
-    SortedMulti k ks -> PayMulSig <$> getPubKeys (length ks) <*> pure k
-    Raw{} -> lift $ throwE "Raw"
-  where
-    getPubKeys n = replicateM n usePubKey
-
--- | A large collection of mock secret keys
-mockSecKeys :: [SecKey]
-mockSecKeys = mapMaybe (secKey . uncurry mkRawKey) [(i, j) | i <- [0 .. 255], j <- [0 .. 255]]
-  where
-    mkRawKey i j = BS.pack $ i : j : replicate 30 0x1
 
 {- | Get the set of addresses associated with an output descriptor.  The list will be empty if:
 
@@ -214,14 +140,78 @@ compile = \case
   where
     compileMaybe = eitherToMaybe . M.compile
 
--- | For key families, get the key at the given index.  Otherwise, return the input key.
+data TransactionScripts = TransactionScripts
+    { txScriptPubKey :: Script
+    , txRedeemScript :: Maybe Script
+    , txWitnessScript :: Maybe Script
+    }
+    deriving (Eq, Show)
+
+outputDescriptorScripts :: OutputDescriptor -> Maybe TransactionScripts
+outputDescriptorScripts =
+    \case
+        ScriptPubKey sd ->
+            compile sd <&> \theScriptPubKey ->
+                TransactionScripts
+                    { txScriptPubKey = theScriptPubKey
+                    , txRedeemScript = Nothing
+                    , txWitnessScript = Nothing
+                    }
+        P2SH sd ->
+            compile sd <&> \theScript ->
+                TransactionScripts
+                    { txScriptPubKey = encodeOutput $ toP2SH theScript
+                    , txRedeemScript = Just theScript
+                    , txWitnessScript = Nothing
+                    }
+        P2WPKH kd -> do
+            theScriptPubKey <- encodeOutput . PayWitnessPKHash . addressHash . S.encode <$> keyDescPubKey kd
+            pure
+                TransactionScripts
+                    { txScriptPubKey = theScriptPubKey
+                    , txRedeemScript = Nothing
+                    , txWitnessScript = Nothing
+                    }
+        P2WSH sd ->
+            compile sd <&> \theScript ->
+                TransactionScripts
+                    { txScriptPubKey = encodeOutput $ toP2WSH theScript
+                    , txRedeemScript = Nothing
+                    , txWitnessScript = Just theScript
+                    }
+        WrappedWPkh kd -> do
+            theRedeemScript <- encodeOutput . PayWitnessPKHash . addressHash . S.encode <$> keyDescPubKey kd
+            pure
+                TransactionScripts
+                    { txScriptPubKey = encodeOutput $ toP2SH theRedeemScript
+                    , txRedeemScript = Just theRedeemScript
+                    , txWitnessScript = Nothing
+                    }
+        WrappedWSh sd ->
+            compile sd <&> \theScript ->
+                let theRedeemScript = encodeOutput $ toP2WSH theScript
+                 in TransactionScripts
+                        { txScriptPubKey = encodeOutput $ toP2SH theRedeemScript
+                        , txRedeemScript = Just theRedeemScript
+                        , txWitnessScript = Just theScript
+                        }
+        Combo _kd -> Nothing
+        Addr _ad -> Nothing
+
+{- | For key families, get the key at the given index.  Otherwise, return the input key.
+
+  @since 0.2.1
+-}
 keyAtIndex :: Word32 -> Key -> Key
 keyAtIndex ix = \case
     XPub xpub path HardKeys -> XPub xpub (path :| ix) Single
     XPub xpub path SoftKeys -> XPub xpub (path :/ ix) Single
     key -> key
 
--- | Specialize key families occurring in the descriptor to the given index
+{- | Specialize key families occurring in the descriptor to the given index
+
+ @since 0.2.1
+-}
 outputDescriptorAtIndex :: KeyIndex -> OutputDescriptor -> OutputDescriptor
 outputDescriptorAtIndex ix = \case
     o@ScriptPubKey{} -> o
@@ -233,7 +223,10 @@ outputDescriptorAtIndex ix = \case
     Combo kd -> Combo $ keyDescriptorAtIndex ix kd
     a@Addr{} -> a
 
--- | Specialize key families occurring in the descriptor to the given index
+{- | Specialize key families occurring in the descriptor to the given index
+
+ @since 0.2.1
+-}
 scriptDescriptorAtIndex :: KeyIndex -> ScriptDescriptor -> ScriptDescriptor
 scriptDescriptorAtIndex ix = \case
     Pk kd -> Pk $ specialize kd
@@ -244,6 +237,151 @@ scriptDescriptorAtIndex ix = \case
   where
     specialize = keyDescriptorAtIndex ix
 
--- | Specialize key families occurring in the descriptor to the given index
+{- | Specialize key families occurring in the descriptor to the given index
+
+ @since 0.2.1
+-}
 keyDescriptorAtIndex :: KeyIndex -> KeyDescriptor -> KeyDescriptor
 keyDescriptorAtIndex ix keyDescriptor = keyDescriptor{keyDef = keyAtIndex ix $ keyDef keyDescriptor}
+
+{- | Produce the psbt input parameters needed to spend an output from the
+descriptor.  Caveat: This construction fails on `Combo` and `Addr` outputs.
+
+ @since 0.2.1
+-}
+toPsbtInput ::
+    -- | Transaction being spent
+    Tx ->
+    -- | Output being spent
+    Int ->
+    -- | Descriptor for output being spent
+    OutputDescriptor ->
+    Either PsbtInputError Input
+toPsbtInput tx ix descriptor = case descriptor of
+    ScriptPubKey sd ->
+        pure
+            emptyInput
+                { nonWitnessUtxo = Just tx
+                , inputHDKeypaths = hdPaths sd
+                }
+    P2SH sd -> do
+        script <- compileForInput sd
+        pure
+            emptyInput
+                { nonWitnessUtxo = Just tx
+                , inputRedeemScript = Just script
+                , inputHDKeypaths = hdPaths sd
+                }
+    P2WPKH kd -> do
+        output <- txOut tx `safeIndex` ix
+        pure
+            emptyInput
+                { witnessUtxo = Just output
+                , inputHDKeypaths = hdPath kd
+                }
+    P2WSH sd -> do
+        output <- txOut tx `safeIndex` ix
+        script <- compileForInput sd
+        pure
+            emptyInput
+                { witnessUtxo = Just output
+                , inputWitnessScript = Just script
+                , inputHDKeypaths = hdPaths sd
+                }
+    WrappedWPkh kd -> do
+        output <- txOut tx `safeIndex` ix
+        k <- maybe (Left $ KeyNotAvailable kd) pure $ keyDescPubKey kd
+        pure
+            emptyInput
+                { witnessUtxo = Just output
+                , inputRedeemScript =
+                    Just
+                        . encodeOutput
+                        . PayWitnessPKHash
+                        . addressHash
+                        $ encode k
+                , inputHDKeypaths = hdPath kd
+                }
+    WrappedWSh sd -> do
+        output <- txOut tx `safeIndex` ix
+        script <- compileForInput sd
+        pure
+            emptyInput
+                { witnessUtxo = Just output
+                , inputRedeemScript = Just . encodeOutput $ toP2WSH script
+                , inputWitnessScript = Just script
+                , inputHDKeypaths = hdPaths sd
+                }
+    o@Combo{} -> Left $ InvalidOutput o
+    o@Addr{} -> Left $ InvalidOutput o
+  where
+    hdPaths = foldMap hdPath . scriptKeys
+    compileForInput sd = maybe (Left $ CompileError sd) pure $ compile sd
+
+    safeIndex (x : xs) n
+        | n == 0 = pure x
+        | n > 0 = safeIndex xs (n - 1)
+    safeIndex _ _ = Left $ OutputIndexOOB tx ix
+
+data PsbtInputError
+    = OutputIndexOOB Tx Int
+    | CompileError ScriptDescriptor
+    | KeyNotAvailable KeyDescriptor
+    | InvalidOutput OutputDescriptor
+    deriving (Eq, Show)
+
+instance Exception PsbtInputError
+
+hdPath :: KeyDescriptor -> HashMap PubKeyI (Fingerprint, [KeyIndex])
+hdPath k@(KeyDescriptor origin theKeyDef) = fromMaybe mempty $ do
+    pubKey <- keyDescPubKey k
+    fromOrigin pubKey <|> fromKey pubKey
+  where
+    fromOrigin pubKey = do
+        theOrigin <- origin
+        theKeyPath <- keyPath theKeyDef
+        pure $
+            HM.singleton
+                pubKey
+                ( fingerprint theOrigin
+                , pathToList $ derivation theOrigin ++/ theKeyPath
+                )
+    fromKey pubKey =
+        case theKeyDef of
+            XPub xpub path Single ->
+                pure $
+                    HM.singleton
+                        pubKey
+                        ( xPubFP xpub
+                        , pathToList path
+                        )
+            _ -> Nothing
+
+keyPath :: Key -> Maybe DerivPath
+keyPath = \case
+    XPub _ path Single -> Just path
+    _ -> Nothing
+
+scriptKeys :: ScriptDescriptor -> [KeyDescriptor]
+scriptKeys = \case
+    Pk k -> [k]
+    Pkh k -> [k]
+    Multi _ ks -> ks
+    SortedMulti _ ks -> ks
+    Raw{} -> mempty
+
+-- | Extract pubkeys from an 'OutputDescriptor' where possible
+outputDescriptorPubKeys :: OutputDescriptor -> [PubKeyI]
+outputDescriptorPubKeys = \case
+    ScriptPubKey sd -> scriptDescriptorPubKeys sd
+    P2SH sd -> scriptDescriptorPubKeys sd
+    P2WPKH kd -> foldMap pure $ keyDescPubKey kd
+    P2WSH sd -> scriptDescriptorPubKeys sd
+    WrappedWPkh kd -> foldMap pure $ keyDescPubKey kd
+    WrappedWSh sd -> scriptDescriptorPubKeys sd
+    Combo kd -> foldMap pure $ keyDescPubKey kd
+    Addr _ad -> mempty
+
+-- | Extract pubkeys from a 'ScriptDescriptor' where possible
+scriptDescriptorPubKeys :: ScriptDescriptor -> [PubKeyI]
+scriptDescriptorPubKeys = mapMaybe keyDescPubKey . scriptKeys
