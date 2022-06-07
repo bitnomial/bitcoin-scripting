@@ -28,7 +28,7 @@ common base
     -Wno-unused-do-bind
     -funbox-strict-fields
   build-depends:
-      base >=4.12 && <4.16
+      base >=4.12 && <5
     , bytestring >=0.10 && <0.12
     , cereal ^>=0.5
     , haskoin-core ^>=0.21
