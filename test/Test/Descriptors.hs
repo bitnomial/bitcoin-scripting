@@ -25,16 +25,24 @@ import Language.Bitcoin.Script.Descriptors (
     OutputDescriptor (..),
     ScriptDescriptor (..),
     descriptorToText,
+    descriptorToTextWithChecksum,
     parseDescriptor,
+    parseDescriptorWithChecksum,
  )
 import Test.Descriptors.Utils (testDescriptorUtils)
 import Test.Example (Example (..), testTextRep)
 
 descriptorTests :: TestTree
 descriptorTests =
-    testGroup "descriptor tests" $
-        (testTextRep (parseDescriptor btc) (descriptorToText btc) <$> examples)
-            <> [testDescriptorUtils]
+    testGroup
+        "descriptor tests"
+        [ testGroup "without checksum" $
+            (testTextRep (parseDescriptor btc) (descriptorToText btc) <$> examples)
+                <> [testDescriptorUtils]
+        , testGroup "with checksum" $
+            (testTextRep (parseDescriptorWithChecksum btc) (descriptorToTextWithChecksum btc) <$> checksumExamples)
+                <> [testDescriptorUtils]
+        ]
   where
     examples =
         [ example1
@@ -54,6 +62,27 @@ descriptorTests =
         , example15
         , example16
         ]
+    checksumExamples =
+        zipWith
+            withChecksum
+            examples
+            [ "gn28ywm7"
+            , "8fhd9pwu"
+            , "8zl0zxma"
+            , "qkrrc7je"
+            , "lq9sf04s"
+            , "2wtr0ej5"
+            , "hzhjw406"
+            , "y9zthqta"
+            , "qwx6n9lh"
+            , "en3tu306"
+            , "ks05yr6p"
+            , "axav5m0j"
+            , "h69t6zk4"
+            , "ml40v0wf"
+            , "t2zpj2eu"
+            , "v66cvalc"
+            ]
 
 key :: PubKeyI -> KeyDescriptor
 key = KeyDescriptor Nothing . Pubkey
@@ -62,6 +91,9 @@ hexPubkey :: Text -> PubKeyI
 hexPubkey h = PubKeyI k True
   where
     Just k = importPubKey =<< decodeHex h
+
+withChecksum :: Example a -> Text -> Example a
+withChecksum x checksum = x{text = text x <> "#" <> checksum}
 
 example1 :: Example OutputDescriptor
 example1 =

@@ -25,11 +25,14 @@ module Language.Bitcoin.Script.Descriptors (
 
     -- * Text representation
     descriptorToText,
+    descriptorToTextWithChecksum,
     keyDescriptorToText,
 
     -- * Parsing
     parseDescriptor,
     outputDescriptorParser,
+    parseDescriptorWithChecksum,
+    outputDescriptorWithChecksumParser,
     parseKeyDescriptor,
     keyDescriptorParser,
 
@@ -42,9 +45,14 @@ module Language.Bitcoin.Script.Descriptors (
     -- * PSBT
     toPsbtInput,
     PsbtInputError (..),
+
+    -- * Checksums
+    descriptorChecksum,
+    validDescriptorChecksum,
 ) where
 
 import Language.Bitcoin.Script.Descriptors.Parser
 import Language.Bitcoin.Script.Descriptors.Syntax
 import Language.Bitcoin.Script.Descriptors.Text
 import Language.Bitcoin.Script.Descriptors.Utils
+import Language.Bitcoin.Script.Descriptors.Checksum

@@ -3,12 +3,14 @@
 module Language.Bitcoin.Script.Descriptors.Parser (
     parseDescriptor,
     outputDescriptorParser,
+    parseDescriptorWithChecksum,
+    outputDescriptorWithChecksumParser,
     parseKeyDescriptor,
     keyDescriptorParser,
 ) where
 
 import Control.Applicative (optional, (<|>))
-import Data.Attoparsec.Text (Parser)
+import Data.Attoparsec.Text (Parser, char, count, match)
 import qualified Data.Attoparsec.Text as A
 import Data.Bool (bool)
 import qualified Data.ByteString as BS
@@ -26,6 +28,9 @@ import Haskoin (
     xPubImport,
  )
 
+import Control.Monad (unless)
+import qualified Data.Text as Text
+import Language.Bitcoin.Script.Descriptors.Checksum
 import Language.Bitcoin.Script.Descriptors.Syntax
 import Language.Bitcoin.Utils (
     alphanum,
@@ -41,7 +46,16 @@ parseDescriptor :: Network -> Text -> Either String OutputDescriptor
 parseDescriptor net = A.parseOnly $ outputDescriptorParser net
 
 outputDescriptorParser :: Network -> Parser OutputDescriptor
-outputDescriptorParser net =
+outputDescriptorParser = checksumParserOptional . outputDescriptorParser'
+
+parseDescriptorWithChecksum :: Network -> Text -> Either String OutputDescriptor
+parseDescriptorWithChecksum net = A.parseOnly $ outputDescriptorWithChecksumParser net
+
+outputDescriptorWithChecksumParser :: Network -> Parser OutputDescriptor
+outputDescriptorWithChecksumParser = checksumParserRequired . outputDescriptorParser'
+
+outputDescriptorParser' :: Network -> Parser OutputDescriptor
+outputDescriptorParser' net =
     spkP
         <|> shP
         <|> wpkhP
@@ -116,3 +130,21 @@ pathP = go Deriv
         n <- A.decimal
         isHard <- isJust <$> optional (A.char '\'' <|> A.char 'h')
         return $ bool (d :/) (d :|) isHard n
+
+checksumParserOptional :: Parser a -> Parser a
+checksumParserOptional = checksumParser False
+
+checksumParserRequired :: Parser a -> Parser a
+checksumParserRequired = checksumParser True
+
+checksumParser :: Bool -> Parser a -> Parser a
+checksumParser required p = do
+    (input, x) <- match p
+    (if required then fmap Just else optional) $ do
+        _ <- char '#'
+        checksum <- count 8 alphanum
+        unless (input `validDescriptorChecksum` Text.pack checksum) $
+            case descriptorChecksum input of
+                Nothing -> fail "could not compute checksum"
+                Just actual -> fail $ "provided checksum '" <> checksum <> "' does not match computed checksum '" <> Text.unpack actual <> "'"
+    return x
