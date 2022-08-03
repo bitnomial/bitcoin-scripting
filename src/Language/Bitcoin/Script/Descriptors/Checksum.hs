@@ -15,8 +15,8 @@ import qualified Data.IntMap.Strict as IntMap
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Data.Vector (Vector)
-import qualified Data.Vector as Vector
+import Data.Vector.Unboxed (Vector)
+import qualified Data.Vector.Unboxed as Vector
 
 validDescriptorChecksum :: Text -> Text -> Bool
 validDescriptorChecksum desc checksum = case mapM (charsetFind checksumCharset) (Text.unpack checksum) of
