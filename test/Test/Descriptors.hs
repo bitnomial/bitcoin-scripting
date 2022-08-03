@@ -24,10 +24,12 @@ import Language.Bitcoin.Script.Descriptors (
     Origin (..),
     OutputDescriptor (..),
     ScriptDescriptor (..),
+    ChecksumDescriptor (..),
+    ChecksumStatus (..),
     descriptorToText,
     descriptorToTextWithChecksum,
+    parseChecksumDescriptor,
     parseDescriptor,
-    parseDescriptorWithChecksum,
  )
 import Test.Descriptors.Utils (testDescriptorUtils)
 import Test.Example (Example (..), testTextRep)
@@ -40,7 +42,7 @@ descriptorTests =
             (testTextRep (parseDescriptor btc) (descriptorToText btc) <$> examples)
                 <> [testDescriptorUtils]
         , testGroup "with checksum" $
-            (testTextRep (parseDescriptorWithChecksum btc) (descriptorToTextWithChecksum btc) <$> checksumExamples)
+            (testTextRep (parseChecksumDescriptor btc) (descriptorToTextWithChecksum btc . descriptor) <$> checksumExamples)
                 <> [testDescriptorUtils]
         ]
   where
@@ -64,7 +66,7 @@ descriptorTests =
         ]
     checksumExamples =
         zipWith
-            withChecksum
+            withValidChecksum
             examples
             [ "gn28ywm7"
             , "8fhd9pwu"
@@ -92,8 +94,18 @@ hexPubkey h = PubKeyI k True
   where
     Just k = importPubKey =<< decodeHex h
 
-withChecksum :: Example a -> Text -> Example a
-withChecksum x checksum = x{text = text x <> "#" <> checksum}
+withValidChecksum ::
+    Example OutputDescriptor -> Text -> Example ChecksumDescriptor
+withValidChecksum example checksum =
+    example
+        { script =
+            ChecksumDescriptor
+                { descriptor = script example
+                , checksumStatus = Valid
+                , expectedChecksum = checksum
+                }
+        , text = text example <> "#" <> checksum
+        }
 
 example1 :: Example OutputDescriptor
 example1 =

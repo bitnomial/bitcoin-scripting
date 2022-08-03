@@ -7,6 +7,8 @@ module Language.Bitcoin.Script.Descriptors (
     outputDescriptorAtIndex,
     ScriptDescriptor (..),
     scriptDescriptorAtIndex,
+    ChecksumDescriptor (..),
+    ChecksumStatus (..),
 
     -- * Keys
     KeyDescriptor (..),
@@ -29,10 +31,10 @@ module Language.Bitcoin.Script.Descriptors (
     keyDescriptorToText,
 
     -- * Parsing
+    parseChecksumDescriptor,
+    checksumDescriptorParser,
     parseDescriptor,
     outputDescriptorParser,
-    parseDescriptorWithChecksum,
-    outputDescriptorWithChecksumParser,
     parseKeyDescriptor,
     keyDescriptorParser,
 

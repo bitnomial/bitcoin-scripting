@@ -2,6 +2,8 @@ module Language.Bitcoin.Script.Descriptors.Syntax (
     OutputDescriptor (..),
     ScriptDescriptor (..),
     KeyDescriptor (..),
+    ChecksumDescriptor (..),
+    ChecksumStatus (..),
     isDefinite,
     keyDescPubKey,
     keyBytes,
@@ -13,6 +15,7 @@ module Language.Bitcoin.Script.Descriptors.Syntax (
 ) where
 
 import Data.ByteString (ByteString)
+import Data.Text (Text)
 import Haskoin (
     Address,
     DerivPath,
@@ -25,6 +28,28 @@ import Haskoin (
     exportPubKey,
     toSoft,
  )
+
+-- | An 'OutputDescriptor' with checksum details
+data ChecksumDescriptor = ChecksumDescriptor
+    { -- | The output descriptor
+      descriptor :: OutputDescriptor
+    , -- | The status of the output descriptor's checksum
+      checksumStatus :: ChecksumStatus
+    , -- | The expected checksum for the output descriptor
+      expectedChecksum :: Text
+    }
+    deriving (Eq, Show)
+
+-- | The status of an output descriptor's checksum
+data ChecksumStatus
+    = -- | Checksum provided is valid
+      Valid
+    | -- | Checksum provided is invalid
+      Invalid
+        Text -- ^ The invalid checksum
+    | -- | Checksum is not provided
+      Absent
+    deriving (Eq, Show)
 
 -- | High level description for a bitcoin output
 data OutputDescriptor
