@@ -1,10 +1,9 @@
 {-# LANGUAGE ParallelListComp #-}
 
-module Language.Bitcoin.Script.Descriptors.Checksum
-  ( validDescriptorChecksum,
-    descriptorChecksum,
-  )
-where
+module Language.Bitcoin.Script.Descriptors.Checksum (
+  validDescriptorChecksum,
+  descriptorChecksum,
+) where
 
 import Data.Bifunctor (first)
 import Data.Bits (Bits (shiftL, shiftR, testBit, xor, (.&.)))
@@ -18,16 +17,26 @@ import qualified Data.Text as Text
 import Data.Vector.Unboxed (Vector)
 import qualified Data.Vector.Unboxed as Vector
 
+{- | Test whether the textual representation of an output descriptor has the
+ given checksum.
+-}
 validDescriptorChecksum :: Text -> Text -> Bool
-validDescriptorChecksum desc checksum = case mapM (charsetFind checksumCharset) (Text.unpack checksum) of
-  Nothing -> False
-  Just checkSymbols -> 1 == polymodChecksum (expandChecksum desc <> checkSymbols)
+validDescriptorChecksum desc checksum =
+  case mapM (charsetFind checksumCharset) (Text.unpack checksum) of
+    Nothing -> False
+    Just checkSymbols ->
+      1 == polymodChecksum (expandChecksum desc <> checkSymbols)
 
+{- | Compute the checksum of the textual representation of an output descriptor
+ if possible.
+-}
 descriptorChecksum :: Text -> Maybe Text
-descriptorChecksum desc = Text.pack <$> sequenceA [checksumCharset `charsetGet` ((checksum `shiftR` (5 * (7 - i))) .&. 31) | i <- [0 .. 7]]
-  where
-    symbols = expandChecksum desc <> replicate 8 0
-    checksum = 1 `xor` polymodChecksum symbols
+descriptorChecksum desc = Text.pack <$> sequenceA checksumChars
+ where
+  checksumChars = [checksumCharset `charsetGet` charsetIndex i | i <- [0 .. 7]]
+  charsetIndex i = (checksum `shiftR` (5 * (7 - i))) .&. 31
+  symbols = expandChecksum desc <> replicate 8 0
+  checksum = 1 `xor` polymodChecksum symbols
 
 expandChecksum :: Text -> [Word]
 expandChecksum =
@@ -41,10 +50,10 @@ expandChecksum =
     . fromMaybe []
     . mapM (charsetFind inputCharset)
     . Text.unpack
-  where
-    end ([g0], s) = g0 : s
-    end ([g1, g0], s) = 3 * g0 + g1 : s
-    end (_, s) = s
+ where
+  end ([g0], s) = g0 : s
+  end ([g1, g0], s) = 3 * g0 + g1 : s
+  end (_, s) = s
 
 polymodChecksum :: [Word] -> Word
 polymodChecksum =
@@ -56,20 +65,26 @@ polymodChecksum =
           [if chk `testBit` i then g else 0 | i <- [35 ..] | g <- generator]
     )
     1
-  where
-    generator = [0xf5dee51989, 0xa9fdca3312, 0x1bab10e32d, 0x3706b1677a, 0x644d626ffd]
+ where
+  generator =
+    [ 0xf5dee51989
+    , 0xa9fdca3312
+    , 0x1bab10e32d
+    , 0x3706b1677a
+    , 0x644d626ffd
+    ]
 
 data Charset = Charset
-  { charToIndex :: IntMap Word,
-    indexToChar :: Vector Char
+  { charToIndex :: IntMap Word
+  , indexToChar :: Vector Char
   }
 
 charsetFromString :: String -> Charset
 charsetFromString s =
   let xs = [(c, i) | c <- s | i <- [0 ..]]
    in Charset
-        { charToIndex = IntMap.fromList $ first ord <$> xs,
-          indexToChar = Vector.fromList $ fst <$> xs
+        { charToIndex = IntMap.fromList $ first ord <$> xs
+        , indexToChar = Vector.fromList $ fst <$> xs
         }
 
 charsetFind :: Charset -> Char -> Maybe Word

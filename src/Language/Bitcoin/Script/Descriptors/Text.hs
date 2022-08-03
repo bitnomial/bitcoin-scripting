@@ -26,7 +26,6 @@ import Haskoin (
     xPubExport,
  )
 
-import qualified Data.Text as Text
 import Language.Bitcoin.Script.Descriptors.Checksum (descriptorChecksum)
 import Language.Bitcoin.Script.Descriptors.Syntax
 import Language.Bitcoin.Utils (
@@ -51,9 +50,8 @@ descriptorToText net = \case
     addrErr = error "Unable to parse address"
 
 descriptorToTextWithChecksum :: Network -> OutputDescriptor -> Text
-descriptorToTextWithChecksum net desc
-    | Just checksum <- descriptorChecksum descText = Text.concat [descText, "#", checksum]
-    | otherwise = descText
+descriptorToTextWithChecksum net desc =
+    descText <> maybe "" ("#" <>) (descriptorChecksum descText)
   where
     descText = descriptorToText net desc
 

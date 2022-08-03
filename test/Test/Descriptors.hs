@@ -18,14 +18,14 @@ import Haskoin.Util (decodeHex)
 import Test.Tasty (TestTree, testGroup)
 
 import Language.Bitcoin.Script.Descriptors (
+    ChecksumDescriptor (..),
+    ChecksumStatus (..),
     Key (..),
     KeyCollection (..),
     KeyDescriptor (..),
     Origin (..),
     OutputDescriptor (..),
     ScriptDescriptor (..),
-    ChecksumDescriptor (..),
-    ChecksumStatus (..),
     descriptorToText,
     descriptorToTextWithChecksum,
     parseChecksumDescriptor,
@@ -42,7 +42,11 @@ descriptorTests =
             (testTextRep (parseDescriptor btc) (descriptorToText btc) <$> examples)
                 <> [testDescriptorUtils]
         , testGroup "with checksum" $
-            (testTextRep (parseChecksumDescriptor btc) (descriptorToTextWithChecksum btc . descriptor) <$> checksumExamples)
+            ( testTextRep
+                (parseChecksumDescriptor btc)
+                (descriptorToTextWithChecksum btc . descriptor)
+                <$> checksumExamples
+            )
                 <> [testDescriptorUtils]
         ]
   where
