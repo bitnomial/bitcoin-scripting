@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Bitcoin.Script.Descriptors.Parser (
-    parseChecksumDescriptor,
-    checksumDescriptorParser,
+    ChecksumDescriptor (..),
+    ChecksumStatus (..),
     parseDescriptor,
     outputDescriptorParser,
     parseKeyDescriptor,
@@ -41,15 +41,33 @@ import Language.Bitcoin.Utils (
     maybeFail,
  )
 
+-- | An 'OutputDescriptor' with checksum details
+data ChecksumDescriptor = ChecksumDescriptor
+    { -- | The output descriptor
+      descriptor :: OutputDescriptor
+    , -- | The status of the output descriptor's checksum
+      checksumStatus :: ChecksumStatus
+    , -- | The expected checksum for the output descriptor
+      expectedChecksum :: Text
+    }
+    deriving (Eq, Show)
 
-parseChecksumDescriptor :: Network -> Text -> Either String ChecksumDescriptor
-parseChecksumDescriptor net = A.parseOnly $ checksumDescriptorParser net
+-- | The status of an output descriptor's checksum
+data ChecksumStatus
+    = -- | Checksum provided is valid
+      Valid
+    | -- | Checksum provided is invalid
+      Invalid
+        Text -- ^ The invalid checksum
+    | -- | Checksum is not provided
+      Absent
+    deriving (Eq, Show)
 
-checksumDescriptorParser :: Network -> Parser ChecksumDescriptor
-checksumDescriptorParser = checksumParser . outputDescriptorParser
+parseDescriptor :: Network -> Text -> Either String ChecksumDescriptor
+parseDescriptor net = A.parseOnly $ descriptorParser net
 
-parseDescriptor :: Network -> Text -> Either String OutputDescriptor
-parseDescriptor net = A.parseOnly $ outputDescriptorParser net
+descriptorParser :: Network -> Parser ChecksumDescriptor
+descriptorParser = checksumParser . outputDescriptorParser
 
 outputDescriptorParser :: Network -> Parser OutputDescriptor
 outputDescriptorParser net =

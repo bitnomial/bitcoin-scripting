@@ -17,6 +17,7 @@ import Haskoin.Keys (
 import Haskoin.Util (decodeHex)
 import Test.Tasty (TestTree, testGroup)
 
+import Data.Maybe (fromMaybe)
 import Language.Bitcoin.Script.Descriptors (
     ChecksumDescriptor (..),
     ChecksumStatus (..),
@@ -26,9 +27,9 @@ import Language.Bitcoin.Script.Descriptors (
     Origin (..),
     OutputDescriptor (..),
     ScriptDescriptor (..),
+    descriptorChecksum,
     descriptorToText,
     descriptorToTextWithChecksum,
-    parseChecksumDescriptor,
     parseDescriptor,
  )
 import Test.Descriptors.Utils (testDescriptorUtils)
@@ -38,14 +39,18 @@ descriptorTests :: TestTree
 descriptorTests =
     testGroup
         "descriptor tests"
-        [ testGroup "without checksum" $
-            (testTextRep (parseDescriptor btc) (descriptorToText btc) <$> examples)
-                <> [testDescriptorUtils]
-        , testGroup "with checksum" $
+        [ testGroup "absent checksum" $
             ( testTextRep
-                (parseChecksumDescriptor btc)
+                (parseDescriptor btc)
+                (descriptorToText btc . descriptor)
+                <$> absentChecksumExamples
+            )
+                <> [testDescriptorUtils]
+        , testGroup "valid checksum" $
+            ( testTextRep
+                (parseDescriptor btc)
                 (descriptorToTextWithChecksum btc . descriptor)
-                <$> checksumExamples
+                <$> validChecksumExamples
             )
                 <> [testDescriptorUtils]
         ]
@@ -68,7 +73,8 @@ descriptorTests =
         , example15
         , example16
         ]
-    checksumExamples =
+    absentChecksumExamples = withAbsentChecksum <$> examples
+    validChecksumExamples =
         zipWith
             withValidChecksum
             examples
@@ -97,6 +103,19 @@ hexPubkey :: Text -> PubKeyI
 hexPubkey h = PubKeyI k True
   where
     Just k = importPubKey =<< decodeHex h
+
+withAbsentChecksum ::
+    Example OutputDescriptor -> Example ChecksumDescriptor
+withAbsentChecksum example =
+    example
+        { script =
+            ChecksumDescriptor
+                { descriptor = script example
+                , checksumStatus = Absent
+                , expectedChecksum =
+                    fromMaybe "" $ descriptorChecksum $ text example
+                }
+        }
 
 withValidChecksum ::
     Example OutputDescriptor -> Text -> Example ChecksumDescriptor
