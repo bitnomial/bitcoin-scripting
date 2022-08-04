@@ -32,7 +32,7 @@ common base
     , bytestring >=0.10 && <0.12
     , cereal ^>=0.5
     , haskoin-core ^>=0.21
-    , text >=1.2 && <1.3
+    , text >=1.2 && <2.1
     , unordered-containers ^>=0.2
 
 library
