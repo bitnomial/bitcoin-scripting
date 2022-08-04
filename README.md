@@ -1,4 +1,4 @@
-# bitcoin-scripting 0.2.0
+# bitcoin-scripting
 
 ## Disclaimer
 
@@ -21,7 +21,7 @@ cd bitcoin-scripting
 cabal build && cabal test 
 ```
 
-This software only builds with `GHC == 8.10.4` and we recommend using [ghcup][ghcup] to manage GHC versions.
+We only test builds with `GHC == 9.2.3` and we recommend using [ghcup][ghcup] to manage GHC versions.
 
 Please format using `ormolu` (with 4 space tabs) or `fourmolu` (with default configuration).
 
