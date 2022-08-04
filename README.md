@@ -23,7 +23,7 @@ cabal build && cabal test
 
 This software only builds with `GHC == 8.10.4` and we recommend using [ghcup][ghcup] to manage GHC versions.
 
-Please format using `ormolu` or `fourmolu` (with default configuration).
+Please format using `ormolu` (with 4 space tabs) or `fourmolu` (with default configuration).
 
-[hackage]: https://hackage.haskell.org/package/bitcoin-scripting-0.2.0
+[hackage]: https://hackage.haskell.org/package/bitcoin-scripting
 [ghcup]: https://gitlab.haskell.org/haskell/ghcup
