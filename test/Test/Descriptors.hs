@@ -37,23 +37,21 @@ import Test.Example (Example (..), testTextRep)
 
 descriptorTests :: TestTree
 descriptorTests =
-    testGroup
-        "descriptor tests"
+    testGroup "descriptor tests" $
         [ testGroup "absent checksum" $
             ( testTextRep
                 (parseDescriptor btc)
                 (descriptorToText btc . descriptor)
                 <$> absentChecksumExamples
             )
-                <> [testDescriptorUtils]
         , testGroup "valid checksum" $
             ( testTextRep
                 (parseDescriptor btc)
                 (descriptorToTextWithChecksum btc . descriptor)
                 <$> validChecksumExamples
             )
-                <> [testDescriptorUtils]
         ]
+            <> [testDescriptorUtils]
   where
     examples =
         [ example1

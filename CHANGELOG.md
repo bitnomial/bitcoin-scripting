@@ -1,5 +1,9 @@
 # Revision history for bitcoin-scripting 
 
+## 0.3.0
+
+* Adds ability to parse, compute, and verify checksums
+
 ## 0.2.1
 
 * Adds functions to specialize key family descriptors in output (and script) descriptors to a particular index

@@ -29,7 +29,10 @@ import Haskoin (
  )
 
 import qualified Data.Text as Text
-import Language.Bitcoin.Script.Descriptors.Checksum
+import Language.Bitcoin.Script.Descriptors.Checksum (
+    descriptorChecksum,
+    validDescriptorChecksum,
+ )
 import Language.Bitcoin.Script.Descriptors.Syntax
 import Language.Bitcoin.Utils (
     alphanum,
@@ -43,12 +46,12 @@ import Language.Bitcoin.Utils (
 
 -- | An 'OutputDescriptor' with checksum details
 data ChecksumDescriptor = ChecksumDescriptor
-    { -- | The output descriptor
-      descriptor :: OutputDescriptor
-    , -- | The status of the output descriptor's checksum
-      checksumStatus :: ChecksumStatus
-    , -- | The expected checksum for the output descriptor
-      expectedChecksum :: Text
+    { descriptor :: OutputDescriptor
+    -- ^ The output descriptor
+    , checksumStatus :: ChecksumStatus
+    -- ^ The status of the output descriptor's checksum
+    , expectedChecksum :: Text
+    -- ^ The expected checksum for the output descriptor
     }
     deriving (Eq, Show)
 
@@ -58,27 +61,26 @@ data ChecksumStatus
       Valid
     | -- | Checksum provided is invalid
       Invalid
-        Text -- ^ The invalid checksum
+        Text
+        -- ^ The invalid checksum
     | -- | Checksum is not provided
       Absent
     deriving (Eq, Show)
 
 parseDescriptor :: Network -> Text -> Either String ChecksumDescriptor
-parseDescriptor net = A.parseOnly $ descriptorParser net
+parseDescriptor = A.parseOnly . outputDescriptorParser
 
-descriptorParser :: Network -> Parser ChecksumDescriptor
-descriptorParser = checksumParser . outputDescriptorParser
-
-outputDescriptorParser :: Network -> Parser OutputDescriptor
+outputDescriptorParser :: Network -> Parser ChecksumDescriptor
 outputDescriptorParser net =
-    spkP
-        <|> shP
-        <|> wpkhP
-        <|> wshP
-        <|> shwpkhP
-        <|> shwshP
-        <|> comboP
-        <|> addrP
+    checksumParser $
+        spkP
+            <|> shP
+            <|> wpkhP
+            <|> wshP
+            <|> shwpkhP
+            <|> shwshP
+            <|> comboP
+            <|> addrP
   where
     sdP = scriptDescriptorParser net
     keyP = keyDescriptorParser net
