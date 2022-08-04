@@ -4,6 +4,7 @@
 -- | Convert descriptors to text
 module Language.Bitcoin.Script.Descriptors.Text (
     descriptorToText,
+    descriptorToTextWithChecksum,
     keyDescriptorToText,
 ) where
 
@@ -25,6 +26,7 @@ import Haskoin (
     xPubExport,
  )
 
+import Language.Bitcoin.Script.Descriptors.Checksum (descriptorChecksum)
 import Language.Bitcoin.Script.Descriptors.Syntax
 import Language.Bitcoin.Utils (
     applicationText,
@@ -46,6 +48,12 @@ descriptorToText net = \case
     keyToText = keyDescriptorToText net
 
     addrErr = error "Unable to parse address"
+
+descriptorToTextWithChecksum :: Network -> OutputDescriptor -> Text
+descriptorToTextWithChecksum net desc =
+    descText <> maybe "" ("#" <>) (descriptorChecksum descText)
+  where
+    descText = descriptorToText net desc
 
 scriptDescriptorToText :: Network -> ScriptDescriptor -> Text
 scriptDescriptorToText net = \case

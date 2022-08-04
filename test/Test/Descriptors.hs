@@ -17,14 +17,19 @@ import Haskoin.Keys (
 import Haskoin.Util (decodeHex)
 import Test.Tasty (TestTree, testGroup)
 
+import Data.Maybe (fromMaybe)
 import Language.Bitcoin.Script.Descriptors (
+    ChecksumDescriptor (..),
+    ChecksumStatus (..),
     Key (..),
     KeyCollection (..),
     KeyDescriptor (..),
     Origin (..),
     OutputDescriptor (..),
     ScriptDescriptor (..),
+    descriptorChecksum,
     descriptorToText,
+    descriptorToTextWithChecksum,
     parseDescriptor,
  )
 import Test.Descriptors.Utils (testDescriptorUtils)
@@ -32,9 +37,23 @@ import Test.Example (Example (..), testTextRep)
 
 descriptorTests :: TestTree
 descriptorTests =
-    testGroup "descriptor tests" $
-        (testTextRep (parseDescriptor btc) (descriptorToText btc) <$> examples)
-            <> [testDescriptorUtils]
+    testGroup
+        "descriptor tests"
+        [ testGroup "absent checksum" $
+            ( testTextRep
+                (parseDescriptor btc)
+                (descriptorToText btc . descriptor)
+                <$> absentChecksumExamples
+            )
+                <> [testDescriptorUtils]
+        , testGroup "valid checksum" $
+            ( testTextRep
+                (parseDescriptor btc)
+                (descriptorToTextWithChecksum btc . descriptor)
+                <$> validChecksumExamples
+            )
+                <> [testDescriptorUtils]
+        ]
   where
     examples =
         [ example1
@@ -54,6 +73,28 @@ descriptorTests =
         , example15
         , example16
         ]
+    absentChecksumExamples = withAbsentChecksum <$> examples
+    validChecksumExamples =
+        zipWith
+            withValidChecksum
+            examples
+            [ "gn28ywm7"
+            , "8fhd9pwu"
+            , "8zl0zxma"
+            , "qkrrc7je"
+            , "lq9sf04s"
+            , "2wtr0ej5"
+            , "hzhjw406"
+            , "y9zthqta"
+            , "qwx6n9lh"
+            , "en3tu306"
+            , "ks05yr6p"
+            , "axav5m0j"
+            , "h69t6zk4"
+            , "ml40v0wf"
+            , "t2zpj2eu"
+            , "v66cvalc"
+            ]
 
 key :: PubKeyI -> KeyDescriptor
 key = KeyDescriptor Nothing . Pubkey
@@ -62,6 +103,32 @@ hexPubkey :: Text -> PubKeyI
 hexPubkey h = PubKeyI k True
   where
     Just k = importPubKey =<< decodeHex h
+
+withAbsentChecksum ::
+    Example OutputDescriptor -> Example ChecksumDescriptor
+withAbsentChecksum example =
+    example
+        { script =
+            ChecksumDescriptor
+                { descriptor = script example
+                , checksumStatus = Absent
+                , expectedChecksum =
+                    fromMaybe "" $ descriptorChecksum $ text example
+                }
+        }
+
+withValidChecksum ::
+    Example OutputDescriptor -> Text -> Example ChecksumDescriptor
+withValidChecksum example checksum =
+    example
+        { script =
+            ChecksumDescriptor
+                { descriptor = script example
+                , checksumStatus = Valid
+                , expectedChecksum = checksum
+                }
+        , text = text example <> "#" <> checksum
+        }
 
 example1 :: Example OutputDescriptor
 example1 =

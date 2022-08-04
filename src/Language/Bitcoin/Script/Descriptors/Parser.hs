@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Bitcoin.Script.Descriptors.Parser (
+    ChecksumDescriptor (..),
+    ChecksumStatus (..),
     parseDescriptor,
     outputDescriptorParser,
     parseKeyDescriptor,
@@ -8,11 +10,11 @@ module Language.Bitcoin.Script.Descriptors.Parser (
 ) where
 
 import Control.Applicative (optional, (<|>))
-import Data.Attoparsec.Text (Parser)
+import Data.Attoparsec.Text (Parser, char, count, match)
 import qualified Data.Attoparsec.Text as A
 import Data.Bool (bool)
 import qualified Data.ByteString as BS
-import Data.Maybe (isJust)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Text (Text, pack)
 import Haskoin (
     DerivPath,
@@ -26,6 +28,8 @@ import Haskoin (
     xPubImport,
  )
 
+import qualified Data.Text as Text
+import Language.Bitcoin.Script.Descriptors.Checksum
 import Language.Bitcoin.Script.Descriptors.Syntax
 import Language.Bitcoin.Utils (
     alphanum,
@@ -37,8 +41,33 @@ import Language.Bitcoin.Utils (
     maybeFail,
  )
 
-parseDescriptor :: Network -> Text -> Either String OutputDescriptor
-parseDescriptor net = A.parseOnly $ outputDescriptorParser net
+-- | An 'OutputDescriptor' with checksum details
+data ChecksumDescriptor = ChecksumDescriptor
+    { -- | The output descriptor
+      descriptor :: OutputDescriptor
+    , -- | The status of the output descriptor's checksum
+      checksumStatus :: ChecksumStatus
+    , -- | The expected checksum for the output descriptor
+      expectedChecksum :: Text
+    }
+    deriving (Eq, Show)
+
+-- | The status of an output descriptor's checksum
+data ChecksumStatus
+    = -- | Checksum provided is valid
+      Valid
+    | -- | Checksum provided is invalid
+      Invalid
+        Text -- ^ The invalid checksum
+    | -- | Checksum is not provided
+      Absent
+    deriving (Eq, Show)
+
+parseDescriptor :: Network -> Text -> Either String ChecksumDescriptor
+parseDescriptor net = A.parseOnly $ descriptorParser net
+
+descriptorParser :: Network -> Parser ChecksumDescriptor
+descriptorParser = checksumParser . outputDescriptorParser
 
 outputDescriptorParser :: Network -> Parser OutputDescriptor
 outputDescriptorParser net =
@@ -116,3 +145,17 @@ pathP = go Deriv
         n <- A.decimal
         isHard <- isJust <$> optional (A.char '\'' <|> A.char 'h')
         return $ bool (d :/) (d :|) isHard n
+
+checksumParser :: Parser OutputDescriptor -> Parser ChecksumDescriptor
+checksumParser p = do
+    (input, desc) <- match p
+    actual <- fmap (fromMaybe "") . optional $ do
+        _ <- char '#'
+        Text.pack <$> count 8 alphanum
+    let status = case actual of
+            "" -> Absent
+            _
+                | input `validDescriptorChecksum` actual -> Valid
+                | otherwise -> Invalid actual
+        expected = fromMaybe "" $ descriptorChecksum input
+    return $ ChecksumDescriptor desc status expected
