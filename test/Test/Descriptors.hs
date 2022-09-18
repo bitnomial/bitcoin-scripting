@@ -17,7 +17,7 @@ import Haskoin.Keys (
 import Haskoin.Util (decodeHex)
 import Test.Tasty (TestTree, testGroup)
 
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, fromJust)
 import Language.Bitcoin.Script.Descriptors (
     ChecksumDescriptor (..),
     ChecksumStatus (..),
@@ -31,9 +31,12 @@ import Language.Bitcoin.Script.Descriptors (
     descriptorToText,
     descriptorToTextWithChecksum,
     parseDescriptor,
+    xOnlyPubKey, TreeDescriptor (TapBranch, TapLeaf)
  )
 import Test.Descriptors.Utils (testDescriptorUtils)
 import Test.Example (Example (..), testTextRep)
+import Haskoin (XOnlyPubKey)
+import Data.Serialize (decode)
 
 descriptorTests :: TestTree
 descriptorTests =
@@ -70,6 +73,8 @@ descriptorTests =
         , example14
         , example15
         , example16
+        , example17
+        , example18
         ]
     absentChecksumExamples = withAbsentChecksum <$> examples
     validChecksumExamples =
@@ -92,6 +97,8 @@ descriptorTests =
             , "ml40v0wf"
             , "t2zpj2eu"
             , "v66cvalc"
+            , "k6ze7ncu"
+            , "2rqrdjrh"
             ]
 
 key :: PubKeyI -> KeyDescriptor
@@ -101,6 +108,11 @@ hexPubkey :: Text -> PubKeyI
 hexPubkey h = PubKeyI k True
   where
     Just k = importPubKey =<< decodeHex h
+
+hexXOnlyPubkey :: Text -> XOnlyPubKey
+hexXOnlyPubkey h = k
+  where
+    Right k = decode $ fromJust $ decodeHex h
 
 withAbsentChecksum ::
     Example OutputDescriptor -> Example ChecksumDescriptor
@@ -325,3 +337,28 @@ example16 =
   where
     Just xpub1 = xPubImport btc "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
     Just xpub2 = xPubImport btc "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
+
+example17 :: Example OutputDescriptor
+example17 =
+    Example
+        { name = "tr"
+        , text = "tr(c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5)"
+        , script = P2TR k Nothing
+        }
+  where
+    k = xOnlyPubKey $ hexXOnlyPubkey "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
+
+example18 :: Example OutputDescriptor
+example18 =
+    Example
+        { name = "tr with 2 pk script paths"
+        , text = 
+            "tr(c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5,\
+            \{pk(fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556),\
+            \pk(e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13)})"
+        , script = P2TR k $ Just $ TapBranch (TapLeaf $ Pk kLeft) (TapLeaf $ Pk kRight)
+        }
+  where
+    k = xOnlyPubKey $ hexXOnlyPubkey "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
+    kLeft = xOnlyPubKey $ hexXOnlyPubkey "fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556"
+    kRight = xOnlyPubKey $ hexXOnlyPubkey "e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13"

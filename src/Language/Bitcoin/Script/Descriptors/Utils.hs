@@ -9,6 +9,8 @@ module Language.Bitcoin.Script.Descriptors.Utils (
     -- * Conversions
     descriptorAddresses,
     compile,
+    compileTree,
+    compileTapLeaf,
 
     -- * Transaction pieces
     TransactionScripts (..),
@@ -18,11 +20,13 @@ module Language.Bitcoin.Script.Descriptors.Utils (
     keyAtIndex,
     keyDescriptorAtIndex,
     scriptDescriptorAtIndex,
+    treeDescriptorAtIndex,
     outputDescriptorAtIndex,
 
     -- * Pub keys
     outputDescriptorPubKeys,
     scriptDescriptorPubKeys,
+    treeDescriptorPubKeys,
 
     -- * PSBT
     toPsbtInput,
@@ -40,16 +44,20 @@ import Data.Serialize (decode, encode)
 import qualified Data.Serialize as S
 import Data.Word (Word32)
 import Haskoin (
-    Address,
+    Address (WitnessAddress),
     DerivPath,
     DerivPathI ((:/), (:|)),
     Fingerprint,
     Input,
     KeyIndex,
+    MAST (..),
     PubKeyI (..),
-    Script,
+    Script (..),
+    ScriptOp (OP_CHECKSIG),
     ScriptOutput (..),
+    TaprootOutput (..),
     Tx,
+    XOnlyPubKey (..),
     addressHash,
     eitherToMaybe,
     emptyInput,
@@ -58,6 +66,7 @@ import Haskoin (
     inputRedeemScript,
     inputWitnessScript,
     nonWitnessUtxo,
+    opPushData,
     pathToList,
     payToNestedScriptAddress,
     payToScriptAddress,
@@ -67,6 +76,8 @@ import Haskoin (
     pubKeyCompressed,
     pubKeyWitnessAddr,
     sortMulSig,
+    taprootOutputKey,
+    taprootScriptOutput,
     toP2SH,
     toP2WSH,
     txOut,
@@ -84,11 +95,12 @@ import qualified Language.Bitcoin.Miniscript.Syntax as M (
     multi,
  )
 import Language.Bitcoin.Script.Descriptors.Syntax (
-    Key (XPub),
+    Key (..),
     KeyCollection (..),
     KeyDescriptor (KeyDescriptor, keyDef),
     OutputDescriptor (..),
     ScriptDescriptor (..),
+    TreeDescriptor (..),
     derivation,
     fingerprint,
     keyBytes,
@@ -118,8 +130,14 @@ descriptorAddresses = \case
                 <> if pubKeyCompressed pk
                     then [pubKeyWitnessAddr pk, pubKeyCompatWitnessAddr pk]
                     else mempty
+    P2TR key descriptor ->
+        maybeToList $
+            payToTaprootAddress <$> taprootDescriptorOutput key descriptor
     Addr addr -> [addr]
     _ -> mempty
+  where
+    payToTaprootAddress = p2trAddr . encode . XOnlyPubKey . taprootOutputKey
+    p2trAddr = WitnessAddress 0x01
 
 scriptDescriptorOutput :: ScriptDescriptor -> Maybe ScriptOutput
 scriptDescriptorOutput = \case
@@ -128,6 +146,13 @@ scriptDescriptorOutput = \case
     Multi k ks -> PayMulSig <$> traverse keyDescPubKey ks <*> pure k
     SortedMulti k ks -> sortMulSig <$> (PayMulSig <$> traverse keyDescPubKey ks <*> pure k)
     _ -> Nothing
+
+taprootDescriptorOutput ::
+    KeyDescriptor -> Maybe TreeDescriptor -> Maybe TaprootOutput
+taprootDescriptorOutput kd td = do
+    k <- pubKeyPoint <$> keyDescPubKey kd
+    mast <- maybe (Just Nothing) (fmap Just . compileTree) td
+    return $ TaprootOutput k mast
 
 -- | Produce the script described by the descriptor.  Fails when any keys in the descriptor are indeterminate.
 compile :: ScriptDescriptor -> Maybe Script
@@ -139,6 +164,29 @@ compile = \case
     Raw bs -> eitherToMaybe (decode bs)
   where
     compileMaybe = eitherToMaybe . M.compile
+
+{- | Produce the MAST described by the tree descriptor. Fails when any keys in
+ the descriptor are indeterminate.
+-}
+compileTree :: TreeDescriptor -> Maybe MAST
+compileTree = \case
+    TapLeaf script -> MASTLeaf 0xc0 <$> compileTapLeaf script
+    TapBranch left right ->
+        MASTBranch <$> compileTree left <*> compileTree right
+
+{- | Produce the script described by the descriptor in a taproot leaf context.
+Fails when any keys in the descriptor are indeterminate.
+-}
+compileTapLeaf :: ScriptDescriptor -> Maybe Script
+compileTapLeaf = \case
+    Pk keyDesc -> do
+        pubKey <- keyDescPubKey keyDesc
+        return $
+            Script
+                [ opPushData $ encode $ XOnlyPubKey $ pubKeyPoint pubKey
+                , OP_CHECKSIG
+                ]
+    _ -> Nothing
 
 data TransactionScripts = TransactionScripts
     { txScriptPubKey :: Script
@@ -196,6 +244,17 @@ outputDescriptorScripts =
                         , txWitnessScript = Just theScript
                         }
         Combo _kd -> Nothing
+        P2TR kd td -> do
+            taprootOutput <- taprootDescriptorOutput kd td
+            let theScriptPubKey =
+                    encodeOutput $
+                        taprootScriptOutput taprootOutput
+            pure
+                TransactionScripts
+                    { txScriptPubKey = theScriptPubKey
+                    , txRedeemScript = Nothing
+                    , txWitnessScript = Nothing
+                    }
         Addr _ad -> Nothing
 
 {- | For key families, get the key at the given index.  Otherwise, return the input key.
@@ -221,6 +280,8 @@ outputDescriptorAtIndex ix = \case
     WrappedWPkh kd -> WrappedWPkh $ keyDescriptorAtIndex ix kd
     WrappedWSh sd -> WrappedWSh $ scriptDescriptorAtIndex ix sd
     Combo kd -> Combo $ keyDescriptorAtIndex ix kd
+    P2TR kd td ->
+        P2TR (keyDescriptorAtIndex ix kd) (treeDescriptorAtIndex ix <$> td)
     a@Addr{} -> a
 
 {- | Specialize key families occurring in the descriptor to the given index
@@ -243,6 +304,13 @@ scriptDescriptorAtIndex ix = \case
 -}
 keyDescriptorAtIndex :: KeyIndex -> KeyDescriptor -> KeyDescriptor
 keyDescriptorAtIndex ix keyDescriptor = keyDescriptor{keyDef = keyAtIndex ix $ keyDef keyDescriptor}
+
+-- | Specialize key families occurring in the tree descriptor to the given index
+treeDescriptorAtIndex :: KeyIndex -> TreeDescriptor -> TreeDescriptor
+treeDescriptorAtIndex ix = \case
+    TapLeaf sd -> TapLeaf $ scriptDescriptorAtIndex ix sd
+    TapBranch l r ->
+        TapBranch (treeDescriptorAtIndex ix l) (treeDescriptorAtIndex ix r)
 
 {- | Produce the psbt input parameters needed to spend an output from the
 descriptor.  Caveat: This construction fails on `Combo` and `Addr` outputs.
@@ -312,10 +380,22 @@ toPsbtInput tx ix descriptor = case descriptor of
                 , inputWitnessScript = Just script
                 , inputHDKeypaths = hdPaths sd
                 }
+    P2TR kd td -> do
+        output <- txOut tx `safeIndex` ix
+        pure
+            emptyInput
+                { witnessUtxo = Just output
+                , inputHDKeypaths =
+                    hdPath kd
+                        <> ( fromMaybe mempty $
+                                treeHdPaths <$> td
+                           )
+                }
     o@Combo{} -> Left $ InvalidOutput o
     o@Addr{} -> Left $ InvalidOutput o
   where
     hdPaths = foldMap hdPath . scriptKeys
+    treeHdPaths = foldMap hdPaths . treeScripts
     compileForInput sd = maybe (Left $ CompileError sd) pure $ compile sd
 
     safeIndex (x : xs) n
@@ -370,6 +450,11 @@ scriptKeys = \case
     SortedMulti _ ks -> ks
     Raw{} -> mempty
 
+treeScripts :: TreeDescriptor -> [ScriptDescriptor]
+treeScripts = \case
+    TapLeaf sd -> [sd]
+    TapBranch l r -> treeScripts l <> treeScripts r
+
 -- | Extract pubkeys from an 'OutputDescriptor' where possible
 outputDescriptorPubKeys :: OutputDescriptor -> [PubKeyI]
 outputDescriptorPubKeys = \case
@@ -380,8 +465,18 @@ outputDescriptorPubKeys = \case
     WrappedWPkh kd -> foldMap pure $ keyDescPubKey kd
     WrappedWSh sd -> scriptDescriptorPubKeys sd
     Combo kd -> foldMap pure $ keyDescPubKey kd
+    P2TR kd td ->
+        foldMap pure (keyDescPubKey kd)
+            <> concat (treeDescriptorPubKeys <$> td)
     Addr _ad -> mempty
 
 -- | Extract pubkeys from a 'ScriptDescriptor' where possible
 scriptDescriptorPubKeys :: ScriptDescriptor -> [PubKeyI]
 scriptDescriptorPubKeys = mapMaybe keyDescPubKey . scriptKeys
+
+-- | Extract pubkeys from a 'TreeDescriptor' where possible
+treeDescriptorPubKeys :: TreeDescriptor -> [PubKeyI]
+treeDescriptorPubKeys = \case
+    TapLeaf sd -> scriptDescriptorPubKeys sd
+    TapBranch left right ->
+        treeDescriptorPubKeys left <> treeDescriptorPubKeys right

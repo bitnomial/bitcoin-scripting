@@ -7,6 +7,8 @@ module Language.Bitcoin.Script.Descriptors (
     outputDescriptorAtIndex,
     ScriptDescriptor (..),
     scriptDescriptorAtIndex,
+    TreeDescriptor (..),
+    treeDescriptorAtIndex,
 
     -- * Keys
     KeyDescriptor (..),
@@ -19,14 +21,17 @@ module Language.Bitcoin.Script.Descriptors (
     keyDescPubKey,
     pubKey,
     secKey,
+    xOnlyPubKey,
     keyBytes,
     outputDescriptorPubKeys,
     scriptDescriptorPubKeys,
+    treeDescriptorPubKeys,
 
     -- * Text representation
     descriptorToText,
     descriptorToTextWithChecksum,
     keyDescriptorToText,
+    treeDescriptorToText,
 
     -- * Parsing
     ChecksumDescriptor (..),
@@ -35,10 +40,14 @@ module Language.Bitcoin.Script.Descriptors (
     outputDescriptorParser,
     parseKeyDescriptor,
     keyDescriptorParser,
+    parseTreeDescriptor,
+    treeDescriptorParser,
 
     -- * Conversions
     descriptorAddresses,
     compile,
+    compileTree,
+    compileTapLeaf,
     TransactionScripts (..),
     outputDescriptorScripts,
 

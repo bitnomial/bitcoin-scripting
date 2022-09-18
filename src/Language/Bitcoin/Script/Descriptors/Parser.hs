@@ -7,6 +7,8 @@ module Language.Bitcoin.Script.Descriptors.Parser (
     outputDescriptorParser,
     parseKeyDescriptor,
     keyDescriptorParser,
+    parseTreeDescriptor,
+    treeDescriptorParser,
 ) where
 
 import Control.Applicative (optional, (<|>))
@@ -28,6 +30,7 @@ import Haskoin (
     xPubImport,
  )
 
+import Data.Serialize (decode)
 import qualified Data.Text as Text
 import Language.Bitcoin.Script.Descriptors.Checksum (
     descriptorChecksum,
@@ -38,6 +41,7 @@ import Language.Bitcoin.Utils (
     alphanum,
     application,
     argList,
+    braces,
     brackets,
     comma,
     hex,
@@ -80,10 +84,12 @@ outputDescriptorParser net =
             <|> shwpkhP
             <|> shwshP
             <|> comboP
+            <|> trP
             <|> addrP
   where
     sdP = scriptDescriptorParser net
     keyP = keyDescriptorParser net
+    treeP = treeDescriptorParser net
 
     spkP = ScriptPubKey <$> sdP
     shP = P2SH <$> application "sh" sdP
@@ -92,6 +98,7 @@ outputDescriptorParser net =
     shwpkhP = WrappedWPkh <$> (application "sh" . application "wpkh") keyP
     shwshP = WrappedWSh <$> (application "sh" . application "wsh") sdP
     comboP = Combo <$> application "combo" keyP
+    trP = application "tr" $ P2TR <$> keyP <*> optional (comma treeP)
 
     addrP =
         application "addr" (A.manyTill A.anyChar $ A.char ')')
@@ -123,7 +130,11 @@ keyDescriptorParser net = KeyDescriptor <$> originP <*> keyP
         A.take 8
             >>= either fail pure . textToFingerprint
 
-    keyP = pubP <|> wifP <|> XPub <$> xpubP <*> pathP <*> famP
+    keyP = pubP <|> xOnlyPubP <|> wifP <|> XPub <$> xpubP <*> pathP <*> famP
+
+    xOnlyPubP = do
+        bs <- hex
+        either fail (return . XOnlyPub) $ decode bs
 
     pubP = do
         bs <- hex
@@ -147,6 +158,16 @@ pathP = go Deriv
         n <- A.decimal
         isHard <- isJust <$> optional (A.char '\'' <|> A.char 'h')
         return $ bool (d :/) (d :|) isHard n
+
+parseTreeDescriptor :: Network -> Text -> Either String TreeDescriptor
+parseTreeDescriptor net = A.parseOnly $ treeDescriptorParser net
+
+treeDescriptorParser :: Network -> Parser TreeDescriptor
+treeDescriptorParser net =
+    TapLeaf <$> scriptDescriptorParser net
+        <|> braces (TapBranch <$> treeParser <*> comma treeParser)
+  where
+    treeParser = treeDescriptorParser net
 
 checksumParser :: Parser OutputDescriptor -> Parser ChecksumDescriptor
 checksumParser p = do
