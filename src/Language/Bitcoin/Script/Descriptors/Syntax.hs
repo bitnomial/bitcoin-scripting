@@ -86,7 +86,9 @@ data Key
     | -- | (de)serialized as WIF
       SecretKey SecKeyI
     | XPub XPubKey DerivPath KeyCollection
-    | XOnlyPub XOnlyPubKey
+    | -- | An x-only public key. The representation type used will change in the
+      -- future.
+      XOnlyPub XOnlyPubKey
     deriving (Eq, Show)
 
 data TreeDescriptor
