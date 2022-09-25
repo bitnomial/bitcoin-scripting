@@ -77,7 +77,6 @@ import Haskoin (
     pubKeyWitnessAddr,
     sortMulSig,
     taprootOutputKey,
-    taprootScriptOutput,
     toP2SH,
     toP2WSH,
     txOut,
@@ -244,17 +243,7 @@ outputDescriptorScripts =
                         , txWitnessScript = Just theScript
                         }
         Combo _kd -> Nothing
-        P2TR kd td -> do
-            taprootOutput <- taprootDescriptorOutput kd td
-            let theScriptPubKey =
-                    encodeOutput $
-                        taprootScriptOutput taprootOutput
-            pure
-                TransactionScripts
-                    { txScriptPubKey = theScriptPubKey
-                    , txRedeemScript = Nothing
-                    , txWitnessScript = Nothing
-                    }
+        P2TR{} -> Nothing
         Addr _ad -> Nothing
 
 {- | For key families, get the key at the given index.  Otherwise, return the input key.
