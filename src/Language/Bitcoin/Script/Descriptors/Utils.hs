@@ -146,6 +146,10 @@ scriptDescriptorOutput = \case
     SortedMulti k ks -> sortMulSig <$> (PayMulSig <$> traverse keyDescPubKey ks <*> pure k)
     _ -> Nothing
 
+{- | Produce the taproot output described by the tree descriptor. Fails when any
+ keys in the descriptor are indeterminate or an illegal expression occurs in the
+ tree descriptor.
+-}
 taprootDescriptorOutput ::
     KeyDescriptor -> Maybe TreeDescriptor -> Maybe TaprootOutput
 taprootDescriptorOutput kd td = do
@@ -165,7 +169,8 @@ compile = \case
     compileMaybe = eitherToMaybe . M.compile
 
 {- | Produce the MAST described by the tree descriptor. Fails when any keys in
- the descriptor are indeterminate.
+ the descriptor are indeterminate or an illegal expression occurs in the taproot
+ tree.
 -}
 compileTree :: TreeDescriptor -> Maybe MAST
 compileTree = \case
@@ -174,7 +179,9 @@ compileTree = \case
         MASTBranch <$> compileTree left <*> compileTree right
 
 {- | Produce the script described by the descriptor in a taproot leaf context.
-Fails when any keys in the descriptor are indeterminate.
+ Fails when any keys in the descriptor are indeterminate or the script 
+ descriptor is illegal in a taproot descriptor leaf. Only `Pk` expressions are 
+ currently permitted.
 -}
 compileTapLeaf :: ScriptDescriptor -> Maybe Script
 compileTapLeaf = \case
@@ -185,7 +192,10 @@ compileTapLeaf = \case
                 [ opPushData $ encode $ XOnlyPubKey $ pubKeyPoint pubKey
                 , OP_CHECKSIG
                 ]
-    _ -> Nothing
+    Pkh{} -> Nothing
+    Multi{} -> Nothing
+    SortedMulti{} -> Nothing
+    Raw{} -> Nothing
 
 data TransactionScripts = TransactionScripts
     { txScriptPubKey :: Script
