@@ -4,6 +4,7 @@
 module Language.Bitcoin.Utils (
     parens,
     brackets,
+    braces,
     application,
     hex,
     comma,
@@ -34,6 +35,9 @@ parens p = A.char '(' >> p <* A.char ')'
 
 brackets :: Parser a -> Parser a
 brackets p = A.char '[' >> p <* A.char ']'
+
+braces :: Parser a -> Parser a
+braces p = A.char '{' >> p <* A.char '}'
 
 application :: Text -> Parser a -> Parser a
 application fname p = A.string fname >> parens (spacePadded p)

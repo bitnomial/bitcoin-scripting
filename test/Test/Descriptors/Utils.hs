@@ -11,21 +11,24 @@ import Data.Bytes.Put (runPutS)
 import Data.Bytes.Serial (serialize)
 import qualified Data.HashMap.Strict as HM
 import Data.List (sort)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (fromJust, mapMaybe)
 import Data.Serialize (encode)
 import Haskoin (
     DerivPath,
     DerivPathI (..),
+    MAST (MASTBranch, MASTLeaf),
     OutPoint (OutPoint),
-    PubKeyI (PubKeyI),
+    PubKeyI (PubKeyI, pubKeyPoint),
     Script (Script),
     ScriptOp (..),
     ScriptOutput (..),
+    XOnlyPubKey (XOnlyPubKey),
     XPubKey,
     addressHash,
     btc,
     btcRegTest,
     buildTx,
+    decodeHex,
     derivePubKey,
     derivePubPath,
     emptyInput,
@@ -33,6 +36,7 @@ import Haskoin (
     inputHDKeypaths,
     inputRedeemScript,
     inputWitnessScript,
+    mastCommitment,
     nonWitnessUtxo,
     opPushData,
     pathToList,
@@ -57,7 +61,10 @@ import Language.Bitcoin.Script.Descriptors (
     KeyDescriptor (KeyDescriptor),
     OutputDescriptor (..),
     ScriptDescriptor (..),
+    TreeDescriptor (TapBranch, TapLeaf),
     compile,
+    compileTapLeaf,
+    compileTree,
     descriptorAddresses,
     keyDescriptorAtIndex,
     outputDescriptorAtIndex,
@@ -70,6 +77,8 @@ testDescriptorUtils =
     testGroup
         "descriptor utils"
         [ testCompile
+        , testCompileTree
+        , testCompileTapLeaf
         , testAddresses
         , testKeyAtIndex
         , testToPsbtInput
@@ -87,6 +96,7 @@ testAddresses =
         , testWrappedWPhk
         , testWrappedWSh
         , testCombo
+        , testP2TR
         ]
 
 testKeyAtIndex :: TestTree
@@ -147,6 +157,55 @@ testCombo = testCase "Combo" $ sort (descriptorAddresses example) @?= sort expec
             , "2NAUYAHhujozruyzpsFRP63mbrdaU5wnEpN"
             ]
 
+testP2TR :: TestTree
+testP2TR =
+    testGroup
+        "P2TR"
+        [ testP2TRInternalKeyOnly
+        , testP2TRSingleScriptPath
+        , testP2TRMultiScriptPaths
+        ]
+
+testP2TRInternalKeyOnly :: TestTree
+testP2TRInternalKeyOnly =
+    testCase "P2TR internal key only" $
+        descriptorAddresses example @?= [expected]
+  where
+    example = P2TR (pubKey key0) Nothing
+    Just expected =
+        textToAddr
+            btcRegTest
+            "bcrt1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5ssm803es"
+
+testP2TRSingleScriptPath :: TestTree
+testP2TRSingleScriptPath =
+    testCase "P2TR tree (single script path)" $
+        descriptorAddresses example @?= [expected]
+  where
+    example = P2TR (pubKey key0) $ Just $ TapLeaf $ Pk $ pubKey key1
+    Just expected =
+        textToAddr
+            btcRegTest
+            "bcrt1pg44et8f66qnjn5fd0hu6dnnx7tczqslmt3dkzpccjlzeg99psshqfkkdep"
+    _ : key1 : _ = testPubKeys
+
+testP2TRMultiScriptPaths :: TestTree
+testP2TRMultiScriptPaths =
+    testCase "P2TR tree (multi script paths)" $
+        descriptorAddresses example @?= [expected]
+  where
+    example =
+        P2TR (pubKey key0) $
+            Just $
+                TapBranch
+                    (TapLeaf $ Pk $ pubKey key1)
+                    (TapLeaf $ Pk $ pubKey key2)
+    Just expected =
+        textToAddr
+            btcRegTest
+            "bcrt1pprj5dr4rgrw835zyx8ncp9qe54n3ljcgcft0tw9mlj657udee6nq47mg8u"
+    _ : key1 : key2 : _ = testPubKeys
+
 testCompile :: TestTree
 testCompile = testGroup "compile" [testPk, testPkh, testMulti, testSortedMulti]
 
@@ -178,6 +237,62 @@ testSortedMulti = testCase "SortedMulti" $ compile example @?= Just expected
     ks = take 3 testPubKeys
     [k0, k1, k2] = sort $ encode <$> ks
 
+testCompileTree :: TestTree
+testCompileTree = testGroup "testCompileTree" [testTapLeaf, testTapBranch]
+
+testTapLeaf :: TestTree
+testTapLeaf =
+    testCase "TapLeaf" $
+        (mastCommitment <$> compileTree example)
+            @?= Just (mastCommitment expected)
+  where
+    example = TapLeaf $ Pk $ pubKey key0
+    expected =
+        MASTLeaf 0xc0 $
+            Script
+                [ opPushData (encode $ XOnlyPubKey $ pubKeyPoint $ key0)
+                , OP_CHECKSIG
+                ]
+
+testTapBranch :: TestTree
+testTapBranch =
+    testCase "TapBranch" $
+        (mastCommitment <$> compileTree example)
+            @?= Just (mastCommitment expected)
+  where
+    example =
+        TapBranch
+            (TapLeaf $ Pk $ pubKey key0)
+            (TapLeaf $ Pk $ pubKey key1)
+    expected =
+        MASTBranch
+            ( MASTLeaf 0xc0 $
+                Script
+                    [ opPushData (encode $ XOnlyPubKey $ pubKeyPoint $ key1)
+                    , OP_CHECKSIG
+                    ]
+            )
+            ( MASTLeaf 0xc0 $
+                Script
+                    [ opPushData (encode $ XOnlyPubKey $ pubKeyPoint $ key0)
+                    , OP_CHECKSIG
+                    ]
+            )
+    _ : key1 : _ = testPubKeys
+
+testCompileTapLeaf :: TestTree
+testCompileTapLeaf = testGroup "testCompileTapLeaf" [testTapLeafPk]
+
+testTapLeafPk :: TestTree
+testTapLeafPk = testCase "Pk" $ compileTapLeaf example @?= Just expected
+  where
+    example = Pk $ pubKey key0
+    expected =
+        Script
+            [ opPushData (encode $ XOnlyPubKey $ pubKeyPoint $ key0)
+            , OP_CHECKSIG
+            ]
+
 testKeyDescriptorAtIndex :: TestTree
 testKeyDescriptorAtIndex = testCase "keyDescriptorAtIndex" $ do
     keyDescriptorAtIndex 5 keyFamA @?= keyA
@@ -197,6 +312,7 @@ testOutputDescriptorAtIndex = testCase "outputDescriptorAtIndex" $ do
     outputDescriptorAtIndex 5 descFamA @?= descA
     outputDescriptorAtIndex 5 descFamB @?= descB
     outputDescriptorAtIndex 5 descFamC @?= descC
+    outputDescriptorAtIndex 5 descFamD @?= descD
   where
     descFamA = P2SH $ SortedMulti 2 [keyFamA, keyFamB]
     descA = P2SH $ SortedMulti 2 [keyA, keyB]
@@ -206,6 +322,9 @@ testOutputDescriptorAtIndex = testCase "outputDescriptorAtIndex" $ do
 
     descFamC = P2WPKH keyFamA
     descC = P2WPKH keyA
+
+    descFamD = P2TR keyFamA (Just $ TapLeaf $ Pk $ keyFamB)
+    descD = P2TR keyA (Just $ TapLeaf $ Pk $ keyB)
 
     keyFamA = KeyDescriptor Nothing $ XPub someXPubA basePath HardKeys
     keyA = KeyDescriptor Nothing $ XPub someXPubA (basePath :| 5) Single
@@ -232,6 +351,9 @@ testToPsbtInput = testCaseSteps "toPsbtInput" $ \step -> do
 
     step "P2WSH-MS"
     toPsbtInput wshMsTx 0 wshMsDescriptor @?= Right expectedWshMsInput
+
+    step "P2TR"
+    toPsbtInput trTx 0 trDescriptor @?= Right expectedTrInput
   where
     p2pkhTx = buildTx [outPoint] [(PayPKHash hashA, 1_000_000)]
     p2pkhDescriptor = ScriptPubKey $ Pkh keyA
@@ -298,6 +420,19 @@ testToPsbtInput = testCaseSteps "toPsbtInput" $ \step -> do
             { witnessUtxo = Just $ (head . txOut) wshMsTx
             , inputWitnessScript = Just $ encodeOutput msScriptOutput
             , inputHDKeypaths = hdKeypathA <> hdKeypathB
+            }
+
+    trTx = buildTx [outPoint] [(trOut, 1_000_000)]
+    trOut =
+        PayWitness 0x01 $
+            fromJust $
+                decodeHex $
+                    "da4710964f7852695de2da025290e24af6d8c281de5a0b902b7135fd9fd74d21"
+    trDescriptor = P2TR keyA Nothing
+    expectedTrInput =
+        emptyInput
+            { witnessUtxo = Just $ (head . txOut) trTx
+            , inputHDKeypaths = hdKeypathA
             }
 
     outPoint = OutPoint "0000000000000000000000000000000000000000000000000000000000000000" 0

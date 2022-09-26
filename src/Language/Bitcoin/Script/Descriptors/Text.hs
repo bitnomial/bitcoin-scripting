@@ -6,6 +6,7 @@ module Language.Bitcoin.Script.Descriptors.Text (
     descriptorToText,
     descriptorToTextWithChecksum,
     keyDescriptorToText,
+    treeDescriptorToText,
 ) where
 
 import Data.Maybe (fromMaybe)
@@ -26,6 +27,8 @@ import Haskoin (
     xPubExport,
  )
 
+import Data.Serialize (encode)
+import qualified Data.Text as Text
 import Language.Bitcoin.Script.Descriptors.Checksum (descriptorChecksum)
 import Language.Bitcoin.Script.Descriptors.Syntax
 import Language.Bitcoin.Utils (
@@ -42,10 +45,14 @@ descriptorToText net = \case
     WrappedWPkh k -> applicationText "sh" . applicationText "wpkh" $ keyToText k
     WrappedWSh x -> applicationText "sh" . applicationText "wsh" $ sdToText x
     Combo k -> applicationText "combo" $ keyToText k
+    P2TR k tree ->
+        applicationText "tr" $
+            keyToText k <> maybe mempty (Text.cons ',' . treeToText) tree
     Addr a -> applicationText "addr" . fromMaybe addrErr $ addrToText net a
   where
     sdToText = scriptDescriptorToText net
     keyToText = keyDescriptorToText net
+    treeToText = treeDescriptorToText net
 
     addrErr = error "Unable to parse address"
 
@@ -76,8 +83,17 @@ keyDescriptorToText net (KeyDescriptor o k) = maybe mempty originText o <> defin
         Pubkey (PubKeyI key c) -> encodeHex $ exportPubKey c key
         SecretKey key -> toWif net key
         XPub xpub path fam -> xPubExport net xpub <> (pack . pathToStr) path <> famText fam
+        XOnlyPub key -> encodeHex $ encode key
 
     famText = \case
         Single -> ""
         HardKeys -> "/*'"
         SoftKeys -> "/*"
+
+treeDescriptorToText :: Network -> TreeDescriptor -> Text
+treeDescriptorToText net = \case
+    TapLeaf script -> scriptDescriptorToText net script
+    TapBranch left right ->
+        "{" <> treeToText left <> "," <> treeToText right <> "}"
+  where
+    treeToText = treeDescriptorToText net

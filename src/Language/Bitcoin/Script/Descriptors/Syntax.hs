@@ -2,6 +2,7 @@ module Language.Bitcoin.Script.Descriptors.Syntax (
     OutputDescriptor (..),
     ScriptDescriptor (..),
     KeyDescriptor (..),
+    TreeDescriptor (..),
     isDefinite,
     keyDescPubKey,
     keyBytes,
@@ -10,6 +11,7 @@ module Language.Bitcoin.Script.Descriptors.Syntax (
     KeyCollection (..),
     pubKey,
     secKey,
+    xOnlyPubKey,
 ) where
 
 import Data.ByteString (ByteString)
@@ -19,11 +21,13 @@ import Haskoin (
     Fingerprint,
     PubKeyI (..),
     SecKeyI,
+    XOnlyPubKey (XOnlyPubKey),
     XPubKey (xPubKey),
     derivePubKeyI,
     derivePubPath,
     exportPubKey,
     toSoft,
+    wrapPubKey,
  )
 
 -- | High level description for a bitcoin output
@@ -43,6 +47,9 @@ data OutputDescriptor
     | -- | An alias for the collection of pk(KEY) and pkh(KEY). If the key is
       -- compressed, it also includes wpkh(KEY) and sh(wpkh(KEY)).
       Combo KeyDescriptor
+    | -- | A P2TR output with the specified key and an optional tree of script
+      -- paths
+      P2TR KeyDescriptor (Maybe TreeDescriptor)
     | -- | The script which ADDR expands to.
       Addr Address
     deriving (Eq, Show)
@@ -79,6 +86,14 @@ data Key
     | -- | (de)serialized as WIF
       SecretKey SecKeyI
     | XPub XPubKey DerivPath KeyCollection
+    | -- | An x-only public key. The representation type used will change in the
+      -- future.
+      XOnlyPub XOnlyPubKey
+    deriving (Eq, Show)
+
+data TreeDescriptor
+    = TapLeaf ScriptDescriptor
+    | TapBranch TreeDescriptor TreeDescriptor
     deriving (Eq, Show)
 
 -- | Simple explicit public key with no origin information
@@ -88,6 +103,10 @@ pubKey = KeyDescriptor Nothing . Pubkey
 -- | Simple explicit secret key with no origin information
 secKey :: SecKeyI -> KeyDescriptor
 secKey = KeyDescriptor Nothing . SecretKey
+
+-- | Simple explicit x-only public key with no origin information
+xOnlyPubKey :: XOnlyPubKey -> KeyDescriptor
+xOnlyPubKey = KeyDescriptor Nothing . XOnlyPub
 
 -- | Represent whether the key corresponds to a collection (and how) or a single key.
 data KeyCollection
@@ -110,6 +129,7 @@ keyDescPubKey (KeyDescriptor _ k) = case k of
     Pubkey pk -> Just pk
     SecretKey sk -> Just $ derivePubKeyI sk
     XPub xpub path Single -> (`PubKeyI` True) . xPubKey . (`derivePubPath` xpub) <$> toSoft path
+    XOnlyPub (XOnlyPubKey pk) -> Just $ wrapPubKey True pk
     _ -> Nothing
 
 -- | Test whether the key descriptor corresponds to a single key
