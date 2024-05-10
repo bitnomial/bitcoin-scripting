@@ -25,11 +25,14 @@ import Language.Bitcoin.Miniscript (
  )
 import Test.Example (Example (..))
 
+
 keyVar :: Text -> Miniscript
 keyVar = AnnC . Key . var
 
+
 keyHVar :: Text -> Miniscript
 keyHVar = AnnC . KeyH . var
+
 
 example1 :: Example Miniscript
 example1 =
@@ -39,6 +42,7 @@ example1 =
         , script = keyVar "key_1"
         }
 
+
 example2 :: Example Miniscript
 example2 =
     Example
@@ -46,6 +50,7 @@ example2 =
         , text = "or_b(pk(key_1),s:pk(key_2))"
         , script = keyVar "key_1" `OrB` (S .: keyVar "key_2")
         }
+
 
 example3 :: Example Miniscript
 example3 =
@@ -55,6 +60,7 @@ example3 =
         , script = keyVar "key_likely" `OrD` keyHVar "key_unlikely"
         }
 
+
 example4 :: Example Miniscript
 example4 =
     Example
@@ -62,6 +68,7 @@ example4 =
         , text = "and_v(v:pk(key_user),or_d(pk(key_service),older(12960)))"
         , script = AndV (V .: keyVar "key_user") (keyVar "key_service" `OrD` older 12960)
         }
+
 
 example5 :: Example Miniscript
 example5 =
@@ -78,6 +85,7 @@ example5 =
                 ]
         }
 
+
 example6 :: Example Miniscript
 example6 =
     Example
@@ -85,6 +93,7 @@ example6 =
         , text = "andor(pk(key_local),older(1008),pk(key_revocation))"
         , script = AndOr (keyVar "key_local") (older 1008) (keyVar "key_revocation")
         }
+
 
 example7 :: Example Miniscript
 example7 =
@@ -100,6 +109,7 @@ example7 =
                    )
         }
 
+
 example8 :: Example Miniscript
 example8 =
     Example
@@ -112,6 +122,7 @@ example8 =
                 (keyVar "key_revocation")
         }
 
+
 example9 :: Example Miniscript
 example9 =
     Example
@@ -119,6 +130,7 @@ example9 =
         , text = "let timeout = 1008 in older(timeout)"
         , script = Let "timeout" (Number 1008) $ Older (var "timeout")
         }
+
 
 -- ht @shesek
 example10 :: Example Miniscript

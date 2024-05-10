@@ -9,11 +9,13 @@ import Test.Tasty (TestTree)
 import Test.Tasty.HUnit (assertFailure, testCase, (@=?))
 import Test.Tasty.QuickCheck (Property, testProperty)
 
+
 data Example a = Example
     { name :: String
     , text :: Text
     , script :: a
     }
+
 
 testTextRep ::
     (Eq a, Show a) =>
@@ -29,6 +31,7 @@ testTextRep parse encode e =
     parseSuccess d = do
         d @=? script e
         encode d @=? text e
+
 
 testExampleProperty :: Example a -> Property -> TestTree
 testExampleProperty e = testProperty (name e)

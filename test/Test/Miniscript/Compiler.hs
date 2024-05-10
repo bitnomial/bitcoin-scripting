@@ -46,6 +46,7 @@ import Test.Example (
 import qualified Test.Miniscript.Examples as E
 import Test.Utils (forAllLabeled, pr12, pr3)
 
+
 compilerTests :: TestTree
 compilerTests = testGroup "compiler" examples
   where
@@ -62,28 +63,36 @@ compilerTests = testGroup "compiler" examples
         , example10
         ]
 
+
 arbitraryKey :: Gen KeyDescriptor
 arbitraryKey = pubKey . snd <$> arbitraryKeyPair
+
 
 keyB :: Text -> KeyDescriptor -> (Text, Miniscript, ByteString)
 keyB n k = (n, KeyDesc k, bs)
   where
     Just bs = keyBytes k
 
+
 pushHash :: ByteString -> ScriptOp
 pushHash = opPushData . encode . ripemd160
+
 
 forKeys :: Testable p => [Text] -> ([(Text, Miniscript, ByteString)] -> p) -> Property
 forKeys = forAllLabeled arbitraryKey keyB
 
+
 arbitraryBytes32 :: Gen ByteString
 arbitraryBytes32 = arbitraryBSn 32
+
 
 scriptCompiles :: Example Miniscript -> [(Text, Miniscript)] -> Property
 scriptCompiles e bs = void (compile . let_ bs $ script e) === Right ()
 
+
 scriptCompilesTo :: Example Miniscript -> [(Text, Miniscript)] -> Script -> Property
 scriptCompilesTo e bs s = compile (let_ bs $ script e) === Right s
+
 
 example1 :: TestTree
 example1 = testExampleProperty E.example1 $
@@ -91,11 +100,13 @@ example1 = testExampleProperty E.example1 $
         let Just bs = keyBytes k
          in scriptCompilesTo E.example1 [("key_1", KeyDesc k)] $ Script [opPushData bs, OP_CHECKSIG]
 
+
 example2 :: TestTree
 example2 = testExampleProperty E.example2 . forKeys ["key_1", "key_2"] $ \ks ->
     scriptCompilesTo E.example2 (pr12 <$> ks) $ result (pr3 <$> ks)
   where
     result [k1, k2] = Script [opPushData k1, OP_CHECKSIG, OP_SWAP, opPushData k2, OP_CHECKSIG, OP_BOOLOR]
+
 
 example3 :: TestTree
 example3 = testExampleProperty E.example3 . forKeys ["key_likely", "key_unlikely"] $ \ks ->
@@ -115,6 +126,7 @@ example3 = testExampleProperty E.example3 . forKeys ["key_likely", "key_unlikely
             , OP_ENDIF
             ]
 
+
 example4 :: TestTree
 example4 = testExampleProperty E.example4 . forKeys ["key_user", "key_service"] $ \ks ->
     scriptCompilesTo E.example4 (pr12 <$> ks) $ result (pr3 <$> ks)
@@ -131,6 +143,7 @@ example4 = testExampleProperty E.example4 . forKeys ["key_user", "key_service"] 
             , OP_CHECKSEQUENCEVERIFY
             , OP_ENDIF
             ]
+
 
 example5 :: TestTree
 example5 = testExampleProperty E.example5 . forKeys ["key_1", "key_2", "key_3"] $ \ks ->
@@ -160,6 +173,7 @@ example5 = testExampleProperty E.example5 . forKeys ["key_1", "key_2", "key_3"] 
             , OP_EQUAL
             ]
 
+
 example6 :: TestTree
 example6 = testExampleProperty E.example6 . forKeys ["key_local", "key_revocation"] $ \ks ->
     scriptCompilesTo E.example6 (pr12 <$> ks) $ result (pr3 <$> ks)
@@ -176,6 +190,7 @@ example6 = testExampleProperty E.example6 . forKeys ["key_local", "key_revocatio
             , OP_CHECKSEQUENCEVERIFY
             , OP_ENDIF
             ]
+
 
 example7 :: TestTree
 example7 = testExampleProperty E.example7 . forKeys ["key_local", "key_revocation", "key_remote"] $ \ks ->
@@ -204,6 +219,7 @@ example7 = testExampleProperty E.example7 . forKeys ["key_local", "key_revocatio
             , OP_ENDIF
             , OP_1
             ]
+
 
 example8 :: TestTree
 example8 = testExampleProperty E.example8 . forKeys ["key_revocation", "key_remote", "key_local"] $ \ks ->
@@ -239,8 +255,10 @@ example8 = testExampleProperty E.example8 . forKeys ["key_revocation", "key_remo
             , OP_ENDIF
             ]
 
+
 example9 :: TestTree
 example9 = testExampleProperty E.example9 . property $ scriptCompiles E.example9 mempty
+
 
 example10 :: TestTree
 example10 = testExampleProperty E.example10 $

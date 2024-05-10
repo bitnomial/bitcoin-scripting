@@ -12,6 +12,7 @@ import qualified Data.ByteString as BS
 import Data.Word (Word8)
 import Haskoin (ScriptOp, intToScriptOp, opPushData)
 
+
 -- | Decode a numeric stack value
 fromCScriptNum :: ByteString -> Int
 fromCScriptNum b
@@ -21,6 +22,7 @@ fromCScriptNum b
     | otherwise = leWord64 b
   where
     Just (b', msb) = BS.unsnoc b
+
 
 -- | Encode a numeric stack value
 toCScriptNum :: Int -> ByteString
@@ -34,10 +36,12 @@ toCScriptNum n
     (b', msb) = intLE n
     b = BS.snoc b' msb
 
+
 pushNumber :: Int -> ScriptOp
 pushNumber i
     | i <= 16 = intToScriptOp i
     | otherwise = opPushData $ toCScriptNum i
+
 
 intLE :: Int -> (ByteString, Word8)
 intLE = go mempty . abs
@@ -45,6 +49,7 @@ intLE = go mempty . abs
     go b n
         | n < 0xff = (b, fromIntegral n)
         | otherwise = let (q, r) = n `quotRem` 256 in go (BS.snoc b $ fromIntegral r) q
+
 
 leWord64 :: ByteString -> Int
 leWord64 bs = sum $ zipWith mult (BS.unpack bs) orders

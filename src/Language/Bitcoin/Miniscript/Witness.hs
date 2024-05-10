@@ -56,25 +56,30 @@ import Language.Bitcoin.Script.Descriptors.Syntax (
     keyDescPubKey,
  )
 
+
 data Signature = Signature
     { sig :: !Sig
     , sigHash :: !SigHash
     }
     deriving (Eq, Show)
 
+
 newtype OrdPubKeyI = OrdPubKeyI {unOrdPubKeyI :: PubKeyI}
     deriving (Eq, Show)
+
 
 instance Ord OrdPubKeyI where
     compare = compare `on` toOrdered . unOrdPubKeyI
       where
         toOrdered (PubKeyI pk c) = exportPubKey c pk
 
+
 data SatisfactionContext = SatisfactionContext
     { signatures :: Map OrdPubKeyI Signature
     , hashPreimages :: Map ByteString ByteString
     }
     deriving (Eq, Show)
+
 
 instance Semigroup SatisfactionContext where
     icA <> icB =
@@ -83,12 +88,15 @@ instance Semigroup SatisfactionContext where
             , hashPreimages = hashPreimages icA <> hashPreimages icB
             }
 
+
 instance Monoid SatisfactionContext where
     mempty = SatisfactionContext mempty mempty
+
 
 -- | Use with the monoid instance to add a signature to the 'SatisfactionContext'
 signature :: PubKeyI -> Signature -> SatisfactionContext
 signature pk = (`SatisfactionContext` mempty) . Map.singleton (OrdPubKeyI pk)
+
 
 -- | Use with the monoid instance to add preimage to the 'SatisfactionContext'
 preimage ::
@@ -99,6 +107,7 @@ preimage ::
     SatisfactionContext
 preimage h = SatisfactionContext mempty . Map.singleton h
 
+
 satisfactionContext :: [(ByteString, ByteString)] -> [(PubKeyI, Signature)] -> SatisfactionContext
 satisfactionContext preimages sigs =
     SatisfactionContext
@@ -106,11 +115,14 @@ satisfactionContext preimages sigs =
         , hashPreimages = Map.fromList preimages
         }
 
+
 lookupSignature :: PubKeyI -> SatisfactionContext -> Maybe Signature
 lookupSignature pk = Map.lookup (OrdPubKeyI pk) . signatures
 
+
 lookupPreimage :: ByteString -> SatisfactionContext -> Maybe ByteString
 lookupPreimage h = Map.lookup h . hashPreimages
+
 
 data ChainState = ChainState
     { blockHeight :: Maybe Int
@@ -118,8 +130,10 @@ data ChainState = ChainState
     }
     deriving (Eq, Show)
 
+
 emptyChainState :: ChainState
 emptyChainState = ChainState Nothing Nothing
+
 
 data SatisfactionError
     = MissingSignature [KeyDescriptor]
@@ -130,7 +144,9 @@ data SatisfactionError
     | AbstractKey KeyDescriptor
     deriving (Eq, Show)
 
+
 instance Exception SatisfactionError
+
 
 data SatScript = SatScript
     { satWeight :: Int
@@ -138,14 +154,18 @@ data SatScript = SatScript
     }
     deriving (Eq, Show)
 
+
 instance Semigroup SatScript where
     SatScript n0 s0 <> SatScript n1 s1 = SatScript (n0 + n1) (s0 <> s1)
+
 
 instance Monoid SatScript where
     mempty = SatScript 0 mempty
 
+
 fromScript :: [ScriptOp] -> SatScript
 fromScript s = SatScript (BS.length $ encode s) s
+
 
 data SatResult = SatResult
     { sat :: Either SatisfactionError SatScript
@@ -153,9 +173,11 @@ data SatResult = SatResult
     }
     deriving (Eq, Show)
 
+
 -- | Compute a scriptinput which satisfies this miniscript
 satisfy :: ChainState -> SatisfactionContext -> Miniscript -> Either SatisfactionError Script
 satisfy chainState sc = fmap (Script . satScript) . sat . (`runReader` mempty) . satisfy' chainState sc
+
 
 satisfy' :: ChainState -> SatisfactionContext -> Miniscript -> Reader (Map Text Miniscript) SatResult
 satisfy' chainState sc = \case
@@ -175,7 +197,7 @@ satisfy' chainState sc = \case
       where
         satisfyKey k
             | Just pk <- keyDescPubKey k
-              , Just s <- lookupSignature pk sc =
+            , Just s <- lookupSignature pk sc =
                 satVals (fromScript [pushSig s]) (SatScript 1 [OP_0])
             | otherwise =
                 return
@@ -187,7 +209,7 @@ satisfy' chainState sc = \case
       where
         satisfyKeyH k
             | Just pk <- keyDescPubKey k
-              , Just s <- lookupSignature pk sc =
+            , Just s <- lookupSignature pk sc =
                 satVals
                     (fromScript [pushSig s, pushKey pk])
                     (fromScript [OP_0, pushKey pk])
@@ -283,8 +305,8 @@ satisfy' chainState sc = \case
 
         satisfyMulti k ks
             | Just pks <- traverse keyDescPubKey ks
-              , ss <- mapMaybe (`lookupSignature` sc) pks
-              , Just result <- foldl' accumMS Nothing $ bestSigs k ss =
+            , ss <- mapMaybe (`lookupSignature` sc) pks
+            , Just result <- foldl' accumMS Nothing $ bestSigs k ss =
                 satVals result (dsatScript k)
             | otherwise = return SatResult{sat = Left $ MissingSignature ks, dsat = return $ dsatScript k}
 
@@ -343,11 +365,14 @@ satisfy' chainState sc = \case
             satVals (fromScript [opPushData p]) (fromScript [opPushData $ otherValue p])
         | otherwise = satErr $ MissingPreimage h
 
+
 pushSig :: Signature -> ScriptOp
 pushSig (Signature s sh) = opPushData . encodeTxSig $ TxSignature s sh
 
+
 pushKey :: PubKeyI -> ScriptOp
 pushKey (PubKeyI k c) = opPushData $ exportPubKey c k
+
 
 -- TODO fingerprinting implications
 otherValue :: ByteString -> ByteString
@@ -355,8 +380,10 @@ otherValue bs
     | bs == zero32 = BS.pack $ replicate 32 0x1
     | otherwise = zero32
 
+
 zero32 :: ByteString
 zero32 = BS.pack $ replicate 32 0x0
+
 
 withLiteral ::
     (Miniscript -> Either SatisfactionError a) ->
@@ -367,32 +394,40 @@ withLiteral g f = \case
     Lit n -> f n
     Variable n -> requiredValue n $ either satErr f . g
 
+
 requiredValue ::
     Text ->
     (Miniscript -> Reader (Map Text Miniscript) SatResult) ->
     Reader (Map Text Miniscript) SatResult
 requiredValue name f = asks (Map.lookup name) >>= maybe (satErr $ FreeVariable name) f
 
+
 guardNumber :: Miniscript -> Either SatisfactionError Int
 guardNumber (Number n) = return n
 guardNumber e = Left $ TypeError "number" e
+
 
 guardKey :: Miniscript -> Either SatisfactionError KeyDescriptor
 guardKey (KeyDesc k) = return k
 guardKey e = Left $ TypeError "key" e
 
+
 guardBytes :: Miniscript -> Either SatisfactionError ByteString
 guardBytes (Bytes b) = return b
 guardBytes e = Left $ TypeError "bytes" e
 
+
 satVals :: Monad m => SatScript -> SatScript -> m SatResult
 satVals x y = return $ SatResult (Right x) (Right y)
+
 
 satErr :: Monad m => SatisfactionError -> m SatResult
 satErr = return . (SatResult <$> Left <*> Left)
 
+
 satConcat :: (Applicative f, Monoid m) => (a -> f m) -> a -> (b -> f m) -> b -> f m
 satConcat f x g y = (<>) <$> f x <*> g y
+
 
 satOr :: Either e SatScript -> Either e SatScript -> Either e SatScript
 satOr xA@(Right sA) xB@(Right sB)
@@ -400,13 +435,14 @@ satOr xA@(Right sA) xB@(Right sB)
     | otherwise = xB
 satOr sA sB = sA <> sB
 
+
 choose :: Int -> (a -> b) -> (a -> b) -> [a] -> [[b]]
 choose 0 _ onExclude xs = [onExclude <$> xs]
 choose k onInclude _ xs
     | k == length xs = [onInclude <$> xs]
     | k > length xs = []
 choose k onInclude onExclude (x : xs) =
-    (handleX onInclude <$> choose (k -1) onInclude onExclude xs)
+    (handleX onInclude <$> choose (k - 1) onInclude onExclude xs)
         <> (handleX onExclude <$> choose k onInclude onExclude xs)
   where
     handleX f zs = f x : zs

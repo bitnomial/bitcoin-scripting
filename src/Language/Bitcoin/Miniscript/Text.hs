@@ -18,6 +18,7 @@ import Language.Bitcoin.Miniscript.Syntax (
 import Language.Bitcoin.Script.Descriptors.Text (keyDescriptorToText)
 import Language.Bitcoin.Utils (applicationText, showText)
 
+
 miniscriptToText :: Network -> Miniscript -> Text
 miniscriptToText net = \case
     Var n -> n

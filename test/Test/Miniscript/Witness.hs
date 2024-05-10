@@ -52,6 +52,7 @@ import Test.Example (
 import qualified Test.Miniscript.Examples as E
 import Test.Utils (forAllLabeled, pr23)
 
+
 witnessTests :: TestTree
 witnessTests = testGroup "witness" examples
   where
@@ -68,11 +69,14 @@ witnessTests = testGroup "witness" examples
         , example10
         ]
 
+
 pushKey :: PubKeyI -> ScriptOp
 pushKey = opPushData . encode
 
+
 pushSig :: Signature -> ScriptOp
 pushSig (Signature s sh) = opPushData . encodeTxSig $ TxSignature s sh
+
 
 forKeys :: Testable p => [Text] -> Miniscript -> ([(PubKeyI, Signature)] -> Miniscript -> p) -> Property
 forKeys ls scr k = forAllLabeled arbKeySig mkRow ls mkProp
@@ -80,6 +84,7 @@ forKeys ls scr k = forAllLabeled arbKeySig mkRow ls mkProp
     mkRow label (pk, s) = (label, pk, s)
     mkProp xs = k (pr23 <$> xs) $ let_ (binding <$> xs) scr
     binding (l, pk, _) = (l, KeyDesc $ pubKey pk)
+
 
 arbKeySig :: Gen (PubKeyI, Signature)
 arbKeySig = repack <$> arbitraryKeyPair
@@ -91,6 +96,7 @@ arbKeySig = repack <$> arbitraryKeyPair
     msg :: ByteString
     msg = "arbKeySig"
 
+
 testExample ::
     Testable p =>
     Example Miniscript ->
@@ -99,10 +105,12 @@ testExample ::
     TestTree
 testExample e ls = testExampleProperty e . forKeys ls (script e)
 
+
 example1 :: TestTree
 example1 = testExample E.example1 ["key_1"] test
   where
     test [(k, s)] scr = satisfy emptyChainState (signature k s) scr === Right (Script [pushSig s])
+
 
 example2 :: TestTree
 example2 = testExample E.example2 ["key_1", "key_2"] test
@@ -112,6 +120,7 @@ example2 = testExample E.example2 ["key_1", "key_2"] test
     expected ((_, s) : _) = Script [OP_0, pushSig s]
     context (x : _) = uncurry signature x
 
+
 example3 :: TestTree
 example3 = testExample E.example3 ["key_likely", "key_unlikely"] test
   where
@@ -119,6 +128,7 @@ example3 = testExample E.example3 ["key_likely", "key_unlikely"] test
 
     expected (_ : (k, s) : _) = Script [pushSig s, pushKey k, OP_0]
     context (_ : x : _) = uncurry signature x
+
 
 example4 :: TestTree
 example4 = testExample E.example4 ["key_user", "key_service"] test
@@ -129,6 +139,7 @@ example4 = testExample E.example4 ["key_user", "key_service"] test
     context (x : _) = uncurry signature x
 
     chainState = ChainState{blockHeight = Nothing, utxoAge = Just 20000}
+
 
 example5 :: TestTree
 example5 = testExample E.example5 ["key_1", "key_2", "key_3"] test
@@ -141,6 +152,7 @@ example5 = testExample E.example5 ["key_1", "key_2", "key_3"] test
 
     chainState = ChainState{blockHeight = Nothing, utxoAge = Just 13000}
 
+
 example6 :: TestTree
 example6 = testExample E.example6 ["key_local", "key_revocation"] test
   where
@@ -152,8 +164,10 @@ example6 = testExample E.example6 ["key_local", "key_revocation"] test
 
     chainState = ChainState{blockHeight = Nothing, utxoAge = Just 100}
 
+
 hashBinding :: ByteString -> Miniscript -> Miniscript
 hashBinding bs = let_ [("H", Bytes . encode $ ripemd160 bs)]
+
 
 example7 :: TestTree
 example7 = testExample E.example7 ["key_local", "key_remote", "key_revocation"] test
@@ -166,6 +180,7 @@ example7 = testExample E.example7 ["key_local", "key_remote", "key_revocation"] 
 
     chainState = ChainState{blockHeight = Nothing, utxoAge = Just 2000}
 
+
 example8 :: TestTree
 example8 = testExample E.example8 ["key_local", "key_remote", "key_revocation"] test
   where
@@ -177,11 +192,13 @@ example8 = testExample E.example8 ["key_local", "key_remote", "key_revocation"] 
 
     chainState = ChainState{blockHeight = Nothing, utxoAge = Just 6}
 
+
 example9 :: TestTree
 example9 = testExample E.example9 [] test
   where
     test _ scr = satisfy chainState mempty scr === Left Impossible
     chainState = ChainState{blockHeight = Nothing, utxoAge = Just 100}
+
 
 example10 :: TestTree
 example10 = testExample E.example10 ["A", "B", "C", "D", "E", "F", "G", "H"] test

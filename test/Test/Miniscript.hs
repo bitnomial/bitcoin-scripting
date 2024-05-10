@@ -1,10 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- |
- Module: Test.Miniscript
-
- Examples taken from <http://bitcoin.sipa.be/miniscript/>
--}
+-- |
+--  Module: Test.Miniscript
+--
+--  Examples taken from <http://bitcoin.sipa.be/miniscript/>
 module Test.Miniscript (
     miniscriptTests,
 ) where
@@ -19,6 +18,7 @@ import Test.Miniscript.Examples
 import Test.Miniscript.Types (typeCheckerTests)
 import Test.Miniscript.Witness (witnessTests)
 
+
 miniscriptTests :: TestTree
 miniscriptTests =
     testGroup
@@ -28,6 +28,7 @@ miniscriptTests =
         , compilerTests
         , witnessTests
         ]
+
 
 parsePrintTests :: TestTree
 parsePrintTests =

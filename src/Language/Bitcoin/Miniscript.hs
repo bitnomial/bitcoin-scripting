@@ -1,9 +1,8 @@
-{- |
- Module: Language.Bitcoin.Miniscript
-
- Haskell embedding of miniscript.  See http://bitcoin.sipa.be/miniscript/ for
- details.  Much of the documentation below is taken from this site.
--}
+-- |
+--  Module: Language.Bitcoin.Miniscript
+--
+--  Haskell embedding of miniscript.  See http://bitcoin.sipa.be/miniscript/ for
+--  details.  Much of the documentation below is taken from this site.
 module Language.Bitcoin.Miniscript (
     -- * Syntax tree
     Value (..),
@@ -51,3 +50,4 @@ import Language.Bitcoin.Miniscript.Parser
 import Language.Bitcoin.Miniscript.Syntax
 import Language.Bitcoin.Miniscript.Text
 import Language.Bitcoin.Miniscript.Types
+

@@ -72,6 +72,7 @@ import Language.Bitcoin.Script.Descriptors (
     toPsbtInput,
  )
 
+
 testDescriptorUtils :: TestTree
 testDescriptorUtils =
     testGroup
@@ -83,6 +84,7 @@ testDescriptorUtils =
         , testKeyAtIndex
         , testToPsbtInput
         ]
+
 
 -- Address tests generated using @bitcoin-cli deriveaddresses@
 testAddresses :: TestTree
@@ -99,6 +101,7 @@ testAddresses =
         , testP2TR
         ]
 
+
 testKeyAtIndex :: TestTree
 testKeyAtIndex =
     testGroup
@@ -107,11 +110,13 @@ testKeyAtIndex =
         , testOutputDescriptorAtIndex
         ]
 
+
 testP2PKH :: TestTree
 testP2PKH = testCase "P2PKH" $ descriptorAddresses example @?= [expected]
   where
     example = ScriptPubKey . Pkh $ pubKey key0
     Just expected = textToAddr btcRegTest "mrCDrCybB6J1vRfbwM5hemdJz73FwDBC8r"
+
 
 testP2SH :: TestTree
 testP2SH = testCase "P2SH" $ descriptorAddresses example @?= [expected]
@@ -120,11 +125,13 @@ testP2SH = testCase "P2SH" $ descriptorAddresses example @?= [expected]
     Just expected = textToAddr btcRegTest "2MuFU6ZyBLtDNadMA6RnwJdXGWUSUaoKLeS"
     ks = pubKey <$> take 3 testPubKeys
 
+
 testP2WPKH :: TestTree
 testP2WPKH = testCase "P2WPKH" $ descriptorAddresses example @?= [expected]
   where
     example = P2WPKH $ pubKey key0
     Just expected = textToAddr btcRegTest "bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080"
+
 
 testP2WSH :: TestTree
 testP2WSH = testCase "P2WSH" $ descriptorAddresses example @?= [expected]
@@ -132,11 +139,13 @@ testP2WSH = testCase "P2WSH" $ descriptorAddresses example @?= [expected]
     example = P2WSH . Pkh $ pubKey key0
     Just expected = textToAddr btcRegTest "bcrt1q8a9wr6e7whe40py3sywj066euga9zt8ep3emz0r2e4zfna7y629sq89pz7"
 
+
 testWrappedWPhk :: TestTree
 testWrappedWPhk = testCase "Wrapped P2WPKH" $ descriptorAddresses example @?= [expected]
   where
     example = WrappedWPkh $ pubKey key0
     Just expected = textToAddr btcRegTest "2NAUYAHhujozruyzpsFRP63mbrdaU5wnEpN"
+
 
 testWrappedWSh :: TestTree
 testWrappedWSh = testCase "Wrapped P2WSH" $ descriptorAddresses example @?= [expected]
@@ -144,6 +153,7 @@ testWrappedWSh = testCase "Wrapped P2WSH" $ descriptorAddresses example @?= [exp
     example = WrappedWSh $ SortedMulti 2 ks
     ks = pubKey <$> take 3 testPubKeys
     Just expected = textToAddr btcRegTest "2NBbyaKyqn2AhMzSnQZrVPAW46KW1it9v7r"
+
 
 testCombo :: TestTree
 testCombo = testCase "Combo" $ sort (descriptorAddresses example) @?= sort expected
@@ -157,6 +167,7 @@ testCombo = testCase "Combo" $ sort (descriptorAddresses example) @?= sort expec
             , "2NAUYAHhujozruyzpsFRP63mbrdaU5wnEpN"
             ]
 
+
 testP2TR :: TestTree
 testP2TR =
     testGroup
@@ -165,6 +176,7 @@ testP2TR =
         , testP2TRSingleScriptPath
         , testP2TRMultiScriptPaths
         ]
+
 
 testP2TRInternalKeyOnly :: TestTree
 testP2TRInternalKeyOnly =
@@ -177,6 +189,7 @@ testP2TRInternalKeyOnly =
             btcRegTest
             "bcrt1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5ssm803es"
 
+
 testP2TRSingleScriptPath :: TestTree
 testP2TRSingleScriptPath =
     testCase "P2TR tree (single script path)" $
@@ -188,6 +201,7 @@ testP2TRSingleScriptPath =
             btcRegTest
             "bcrt1pg44et8f66qnjn5fd0hu6dnnx7tczqslmt3dkzpccjlzeg99psshqfkkdep"
     _ : key1 : _ = testPubKeys
+
 
 testP2TRMultiScriptPaths :: TestTree
 testP2TRMultiScriptPaths =
@@ -206,14 +220,17 @@ testP2TRMultiScriptPaths =
             "bcrt1pprj5dr4rgrw835zyx8ncp9qe54n3ljcgcft0tw9mlj657udee6nq47mg8u"
     _ : key1 : key2 : _ = testPubKeys
 
+
 testCompile :: TestTree
 testCompile = testGroup "compile" [testPk, testPkh, testMulti, testSortedMulti]
+
 
 testPk :: TestTree
 testPk = testCase "Pk" $ compile example @?= Just expected
   where
     example = Pk $ pubKey key0
     expected = Script [opPushData (encode key0), OP_CHECKSIG]
+
 
 testPkh :: TestTree
 testPkh = testCase "Pkh" $ compile example @?= Just expected
@@ -222,12 +239,14 @@ testPkh = testCase "Pkh" $ compile example @?= Just expected
     expected = Script [OP_DUP, OP_HASH160, opPushData (encode keyHash), OP_EQUALVERIFY, OP_CHECKSIG]
     keyHash = ripemd160 $ encode key0
 
+
 testMulti :: TestTree
 testMulti = testCase "Multi" $ compile example @?= Just expected
   where
     example = Multi 2 $ pubKey <$> ks
     expected = Script [OP_2, opPushData (encode k0), opPushData (encode k1), opPushData (encode k2), OP_3, OP_CHECKMULTISIG]
     ks@[k0, k1, k2] = take 3 testPubKeys
+
 
 testSortedMulti :: TestTree
 testSortedMulti = testCase "SortedMulti" $ compile example @?= Just expected
@@ -237,8 +256,10 @@ testSortedMulti = testCase "SortedMulti" $ compile example @?= Just expected
     ks = take 3 testPubKeys
     [k0, k1, k2] = sort $ encode <$> ks
 
+
 testCompileTree :: TestTree
 testCompileTree = testGroup "testCompileTree" [testTapLeaf, testTapBranch]
+
 
 testTapLeaf :: TestTree
 testTapLeaf =
@@ -253,6 +274,7 @@ testTapLeaf =
                 [ opPushData (encode $ XOnlyPubKey $ pubKeyPoint $ key0)
                 , OP_CHECKSIG
                 ]
+
 
 testTapBranch :: TestTree
 testTapBranch =
@@ -280,8 +302,10 @@ testTapBranch =
             )
     _ : key1 : _ = testPubKeys
 
+
 testCompileTapLeaf :: TestTree
 testCompileTapLeaf = testGroup "testCompileTapLeaf" [testTapLeafPk]
+
 
 testTapLeafPk :: TestTree
 testTapLeafPk = testCase "Pk" $ compileTapLeaf example @?= Just expected
@@ -292,6 +316,7 @@ testTapLeafPk = testCase "Pk" $ compileTapLeaf example @?= Just expected
             [ opPushData (encode $ XOnlyPubKey $ pubKeyPoint $ key0)
             , OP_CHECKSIG
             ]
+
 
 testKeyDescriptorAtIndex :: TestTree
 testKeyDescriptorAtIndex = testCase "keyDescriptorAtIndex" $ do
@@ -306,6 +331,7 @@ testKeyDescriptorAtIndex = testCase "keyDescriptorAtIndex" $ do
     keyB = KeyDescriptor Nothing $ XPub someXPubA (basePath :/ 5) Single
 
     keyC = KeyDescriptor Nothing $ XPub someXPubA basePath Single
+
 
 testOutputDescriptorAtIndex :: TestTree
 testOutputDescriptorAtIndex = testCase "outputDescriptorAtIndex" $ do
@@ -331,6 +357,7 @@ testOutputDescriptorAtIndex = testCase "outputDescriptorAtIndex" $ do
 
     keyFamB = KeyDescriptor Nothing $ XPub someXPubB basePath HardKeys
     keyB = KeyDescriptor Nothing $ XPub someXPubB (basePath :| 5) Single
+
 
 testToPsbtInput :: TestTree
 testToPsbtInput = testCaseSteps "toPsbtInput" $ \step -> do
@@ -439,15 +466,24 @@ testToPsbtInput = testCaseSteps "toPsbtInput" $ \step -> do
     path = Deriv :/ 1 :: DerivPath
     Just softPath = toSoft path
 
+
 key0 :: PubKeyI
 testPubKeys :: [PubKeyI]
 testPubKeys@(key0 : _) = (`PubKeyI` True) . derivePubKey <$> mapMaybe (secKey . mkSecKey) [1 .. 255]
   where
     mkSecKey i = BS.pack $ replicate 31 0 <> [i]
 
+
 someXPubA, someXPubB :: XPubKey
-Just someXPubA = xPubImport btc "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
-Just someXPubB = xPubImport btc "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
+Just someXPubA =
+    xPubImport
+        btc
+        "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
+Just someXPubB =
+    xPubImport
+        btc
+        "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
+
 
 basePath :: DerivPath
 basePath = Deriv :| 1500

@@ -30,6 +30,7 @@ import Haskoin (
     wrapPubKey,
  )
 
+
 -- | High level description for a bitcoin output
 data OutputDescriptor
     = -- | The output is secured by the given script.
@@ -54,6 +55,7 @@ data OutputDescriptor
       Addr Address
     deriving (Eq, Show)
 
+
 -- | High level description of a bitcoin script
 data ScriptDescriptor
     = -- | Require a signature for this key
@@ -68,17 +70,20 @@ data ScriptDescriptor
       Raw ByteString
     deriving (Eq, Show)
 
+
 data KeyDescriptor = KeyDescriptor
     { origin :: Maybe Origin
     , keyDef :: Key
     }
     deriving (Eq, Show)
 
+
 data Origin = Origin
     { fingerprint :: Fingerprint
     , derivation :: DerivPath
     }
     deriving (Eq, Ord, Show)
+
 
 data Key
     = -- | DER-hex encoded secp256k1 public key
@@ -91,22 +96,27 @@ data Key
       XOnlyPub XOnlyPubKey
     deriving (Eq, Show)
 
+
 data TreeDescriptor
     = TapLeaf ScriptDescriptor
     | TapBranch TreeDescriptor TreeDescriptor
     deriving (Eq, Show)
 
+
 -- | Simple explicit public key with no origin information
 pubKey :: PubKeyI -> KeyDescriptor
 pubKey = KeyDescriptor Nothing . Pubkey
+
 
 -- | Simple explicit secret key with no origin information
 secKey :: SecKeyI -> KeyDescriptor
 secKey = KeyDescriptor Nothing . SecretKey
 
+
 -- | Simple explicit x-only public key with no origin information
 xOnlyPubKey :: XOnlyPubKey -> KeyDescriptor
 xOnlyPubKey = KeyDescriptor Nothing . XOnlyPub
+
 
 -- | Represent whether the key corresponds to a collection (and how) or a single key.
 data KeyCollection
@@ -117,11 +127,13 @@ data KeyCollection
       SoftKeys
     deriving (Eq, Ord, Show)
 
+
 -- | Produce a key literal if possible
 keyBytes :: KeyDescriptor -> Maybe ByteString
 keyBytes = fmap toBytes . keyDescPubKey
   where
     toBytes (PubKeyI pk c) = exportPubKey c pk
+
 
 -- | Produce a pubkey if possible
 keyDescPubKey :: KeyDescriptor -> Maybe PubKeyI
@@ -131,6 +143,7 @@ keyDescPubKey (KeyDescriptor _ k) = case k of
     XPub xpub path Single -> (`PubKeyI` True) . xPubKey . (`derivePubPath` xpub) <$> toSoft path
     XOnlyPub (XOnlyPubKey pk) -> Just $ wrapPubKey True pk
     _ -> Nothing
+
 
 -- | Test whether the key descriptor corresponds to a single key
 isDefinite :: KeyDescriptor -> Bool

@@ -17,7 +17,9 @@ import Haskoin.Keys (
 import Haskoin.Util (decodeHex)
 import Test.Tasty (TestTree, testGroup)
 
-import Data.Maybe (fromMaybe, fromJust)
+import Data.Maybe (fromJust, fromMaybe)
+import Data.Serialize (decode)
+import Haskoin (XOnlyPubKey)
 import Language.Bitcoin.Script.Descriptors (
     ChecksumDescriptor (..),
     ChecksumStatus (..),
@@ -27,16 +29,16 @@ import Language.Bitcoin.Script.Descriptors (
     Origin (..),
     OutputDescriptor (..),
     ScriptDescriptor (..),
+    TreeDescriptor (TapBranch, TapLeaf),
     descriptorChecksum,
     descriptorToText,
     descriptorToTextWithChecksum,
     parseDescriptor,
-    xOnlyPubKey, TreeDescriptor (TapBranch, TapLeaf)
+    xOnlyPubKey,
  )
 import Test.Descriptors.Utils (testDescriptorUtils)
 import Test.Example (Example (..), testTextRep)
-import Haskoin (XOnlyPubKey)
-import Data.Serialize (decode)
+
 
 descriptorTests :: TestTree
 descriptorTests =
@@ -101,18 +103,22 @@ descriptorTests =
             , "2rqrdjrh"
             ]
 
+
 key :: PubKeyI -> KeyDescriptor
 key = KeyDescriptor Nothing . Pubkey
+
 
 hexPubkey :: Text -> PubKeyI
 hexPubkey h = PubKeyI k True
   where
     Just k = importPubKey =<< decodeHex h
 
+
 hexXOnlyPubkey :: Text -> XOnlyPubKey
 hexXOnlyPubkey h = k
   where
     Right k = decode $ fromJust $ decodeHex h
+
 
 withAbsentChecksum ::
     Example OutputDescriptor -> Example ChecksumDescriptor
@@ -127,6 +133,7 @@ withAbsentChecksum example =
                 }
         }
 
+
 withValidChecksum ::
     Example OutputDescriptor -> Text -> Example ChecksumDescriptor
 withValidChecksum example checksum =
@@ -140,6 +147,7 @@ withValidChecksum example checksum =
         , text = text example <> "#" <> checksum
         }
 
+
 example1 :: Example OutputDescriptor
 example1 =
     Example
@@ -149,6 +157,7 @@ example1 =
         }
   where
     k = hexPubkey "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+
 
 example2 :: Example OutputDescriptor
 example2 =
@@ -160,6 +169,7 @@ example2 =
   where
     k = hexPubkey "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
 
+
 example3 :: Example OutputDescriptor
 example3 =
     Example
@@ -169,6 +179,7 @@ example3 =
         }
   where
     k = hexPubkey "02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+
 
 example4 :: Example OutputDescriptor
 example4 =
@@ -180,6 +191,7 @@ example4 =
   where
     k = hexPubkey "03fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556"
 
+
 example5 :: Example OutputDescriptor
 example5 =
     Example
@@ -190,6 +202,7 @@ example5 =
   where
     k = hexPubkey "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
 
+
 example6 :: Example OutputDescriptor
 example6 =
     Example
@@ -199,6 +212,7 @@ example6 =
         }
   where
     k = hexPubkey "02e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13"
+
 
 example7 :: Example OutputDescriptor
 example7 =
@@ -213,6 +227,7 @@ example7 =
     k1 = hexPubkey "022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4"
     k2 = hexPubkey "025cbdf0646e5db4eaa398f365f2ea7a0e3d419b7e0330e39ce92bddedcac4f9bc"
 
+
 example8 :: Example OutputDescriptor
 example8 =
     Example
@@ -226,6 +241,7 @@ example8 =
     k1 = hexPubkey "022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01"
     k2 = hexPubkey "03acd484e2f0c7f65309ad178a9f559abde09796974c57e714c35f110dfc27ccbe"
 
+
 example9 :: Example OutputDescriptor
 example9 =
     Example
@@ -238,6 +254,7 @@ example9 =
   where
     k1 = hexPubkey "03acd484e2f0c7f65309ad178a9f559abde09796974c57e714c35f110dfc27ccbe"
     k2 = hexPubkey "022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01"
+
 
 example10 :: Example OutputDescriptor
 example10 =
@@ -254,6 +271,7 @@ example10 =
     k2 = hexPubkey "03774ae7f858a9411e5ef4246b70c65aac5649980be5c17891bbec17895da008cb"
     k3 = hexPubkey "03d01115d548e7561b15c38f004d734633687cf4419620095bc5b0f47070afe85a"
 
+
 example11 :: Example OutputDescriptor
 example11 =
     Example
@@ -269,36 +287,52 @@ example11 =
     k2 = hexPubkey "03499fdf9e895e719cfd64e67f07d38e3226aa7b63678949e6e49b241a60e823e4"
     k3 = hexPubkey "02d7924d4f7d43ea965a465ae3095ff41131e5946f3c85f79e44adbcf8e27e080e"
 
+
 example12 :: Example OutputDescriptor
 example12 =
     Example
         { name = "xpub"
-        , text = "pk(xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8)"
+        , text =
+            "pk(xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8)"
         , script = ScriptPubKey . Pk $ KeyDescriptor Nothing (XPub xpub Deriv Single)
         }
   where
-    Just xpub = xPubImport btc "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
+    Just xpub =
+        xPubImport
+            btc
+            "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
+
 
 example13 :: Example OutputDescriptor
 example13 =
     Example
         { name = "p2pkh-xpub with derivation"
-        , text = "pkh(xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw/1'/2)"
+        , text =
+            "pkh(xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw/1'/2)"
         , script = ScriptPubKey . Pkh $ KeyDescriptor Nothing (XPub xpub (Deriv :| 1 :/ 2) Single)
         }
   where
-    Just xpub = xPubImport btc "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw"
+    Just xpub =
+        xPubImport
+            btc
+            "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw"
+
 
 example14 :: Example OutputDescriptor
 example14 =
     Example
         { name = "pkh-xpub with origin and collection spec"
-        , text = "pkh([d34db33f/44'/0'/0']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/1/*)"
+        , text =
+            "pkh([d34db33f/44'/0'/0']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/1/*)"
         , script = ScriptPubKey . Pkh $ KeyDescriptor (Just (Origin fp (Deriv :| 44 :| 0 :| 0))) (XPub xpub (Deriv :/ 1) SoftKeys)
         }
   where
-    Just xpub = xPubImport btc "xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL"
+    Just xpub =
+        xPubImport
+            btc
+            "xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL"
     fp = "d34db33f"
+
 
 example15 :: Example OutputDescriptor
 example15 =
@@ -316,8 +350,15 @@ example15 =
                     ]
         }
   where
-    Just xpub1 = xPubImport btc "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
-    Just xpub2 = xPubImport btc "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
+    Just xpub1 =
+        xPubImport
+            btc
+            "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
+    Just xpub2 =
+        xPubImport
+            btc
+            "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
+
 
 example16 :: Example OutputDescriptor
 example16 =
@@ -335,8 +376,15 @@ example16 =
                     ]
         }
   where
-    Just xpub1 = xPubImport btc "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
-    Just xpub2 = xPubImport btc "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
+    Just xpub1 =
+        xPubImport
+            btc
+            "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
+    Just xpub2 =
+        xPubImport
+            btc
+            "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
+
 
 example17 :: Example OutputDescriptor
 example17 =
@@ -348,11 +396,12 @@ example17 =
   where
     k = xOnlyPubKey $ hexXOnlyPubkey "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
 
+
 example18 :: Example OutputDescriptor
 example18 =
     Example
         { name = "tr with 2 pk script paths"
-        , text = 
+        , text =
             "tr(c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5,\
             \{pk(fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556),\
             \pk(e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13)})"

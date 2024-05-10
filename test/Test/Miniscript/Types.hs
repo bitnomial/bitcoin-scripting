@@ -29,11 +29,14 @@ import Test.Miniscript.Examples (
     example8,
  )
 
+
 typeCheckerTests :: TestTree
 typeCheckerTests = testGroup "type checker" [localPolicy, offeredPolicy, receivedPolicy]
 
+
 arbitraryKey :: Gen KeyDescriptor
 arbitraryKey = pubKey . snd <$> arbitraryKeyPair
+
 
 localPolicy :: TestTree
 localPolicy = testProperty "bolt3 local policy" $
@@ -47,6 +50,7 @@ localPolicy = testProperty "bolt3 local policy" $
             , ("key_revocation", KeyDesc rev)
             ]
             $ script example6
+
 
 offeredPolicy :: TestTree
 offeredPolicy = testProperty "bolt 3 offered policy" $
@@ -64,6 +68,7 @@ offeredPolicy = testProperty "bolt 3 offered policy" $
             , ("H", Bytes h)
             ]
             $ script example7
+
 
 receivedPolicy :: TestTree
 receivedPolicy = testProperty "bolt 3 received policy" $

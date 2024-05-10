@@ -1,0 +1,24 @@
+indentation: 4
+comma-style: leading # for lists, tuples etc. - can also be 'trailing'
+record-brace-space: false # rec {x = 1} vs. rec{x = 1}
+indent-wheres: false # 'false' means save space by only half-indenting the 'where' keyword
+import-export-style: diff-friendly # choices: leading, trailing, diff-friendly
+respectful: true # don't be too opinionated about newlines etc.
+haddock-style: single-line # '--' vs. '{-'
+newlines-between-decls: 2
+single-constraint-parens: never # defaults to 'always', could also be 'auto' (ignore), and 'never'
+single-deriving-parens: never # choices: auto, always, never
+column-limit: 120 # limit columns to 120 characters, as per our style guide
+let-style: inline # choices: auto, inline, newline, mixed
+fixities:
+  - infixr 0  $, $!
+  - infixl 1  >>, >>=, &
+  - infixr 1  =<<
+  - infixl 3 <?>, @?=
+  - infixl 4 <*>, <*, *>, <**>, <$
+  - infixr 4 ?~
+  - infixr 5  ++
+  - infixr 5 :|
+  - infixr 6 <>
+  - infixl 8 .:, .:?, .=, .=?
+  - infixr 9  .

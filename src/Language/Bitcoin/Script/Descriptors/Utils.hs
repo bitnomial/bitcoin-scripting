@@ -1,10 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 
-{- |
-Module: Language.Bitcoin.Script.Descriptors.Utils
-Stability: experimental
--}
+-- |
+-- Module: Language.Bitcoin.Script.Descriptors.Utils
+-- Stability: experimental
 module Language.Bitcoin.Script.Descriptors.Utils (
     -- * Conversions
     descriptorAddresses,
@@ -106,14 +105,14 @@ import Language.Bitcoin.Script.Descriptors.Syntax (
     keyDescPubKey,
  )
 
-{- | Get the set of addresses associated with an output descriptor.  The list will be empty if:
 
-     * any keys are indefinite
-     * the output is p2pk
-     * the output has a non-standard script
-
-     The list can contain more than one address in the case of the "combo" construct.
--}
+-- | Get the set of addresses associated with an output descriptor.  The list will be empty if:
+--
+--      * any keys are indefinite
+--      * the output is p2pk
+--      * the output has a non-standard script
+--
+--      The list can contain more than one address in the case of the "combo" construct.
 descriptorAddresses :: OutputDescriptor -> [Address]
 descriptorAddresses = \case
     ScriptPubKey Pk{} -> mempty
@@ -138,6 +137,7 @@ descriptorAddresses = \case
     payToTaprootAddress = p2trAddr . encode . XOnlyPubKey . taprootOutputKey
     p2trAddr = WitnessAddress 0x01
 
+
 scriptDescriptorOutput :: ScriptDescriptor -> Maybe ScriptOutput
 scriptDescriptorOutput = \case
     Pk key -> PayPK <$> keyDescPubKey key
@@ -146,16 +146,17 @@ scriptDescriptorOutput = \case
     SortedMulti k ks -> sortMulSig <$> (PayMulSig <$> traverse keyDescPubKey ks <*> pure k)
     _ -> Nothing
 
-{- | Produce the taproot output described by the tree descriptor. Fails when any
- keys in the descriptor are indeterminate or an illegal expression occurs in the
- tree descriptor.
--}
+
+-- | Produce the taproot output described by the tree descriptor. Fails when any
+--  keys in the descriptor are indeterminate or an illegal expression occurs in the
+--  tree descriptor.
 taprootDescriptorOutput ::
     KeyDescriptor -> Maybe TreeDescriptor -> Maybe TaprootOutput
 taprootDescriptorOutput kd td = do
     k <- pubKeyPoint <$> keyDescPubKey kd
     mast <- maybe (Just Nothing) (fmap Just . compileTree) td
     return $ TaprootOutput k mast
+
 
 -- | Produce the script described by the descriptor.  Fails when any keys in the descriptor are indeterminate.
 compile :: ScriptDescriptor -> Maybe Script
@@ -168,21 +169,21 @@ compile = \case
   where
     compileMaybe = eitherToMaybe . M.compile
 
-{- | Produce the MAST described by the tree descriptor. Fails when any keys in
- the descriptor are indeterminate or an illegal expression occurs in the taproot
- tree.
--}
+
+-- | Produce the MAST described by the tree descriptor. Fails when any keys in
+--  the descriptor are indeterminate or an illegal expression occurs in the taproot
+--  tree.
 compileTree :: TreeDescriptor -> Maybe MAST
 compileTree = \case
     TapLeaf script -> MASTLeaf 0xc0 <$> compileTapLeaf script
     TapBranch left right ->
         MASTBranch <$> compileTree left <*> compileTree right
 
-{- | Produce the script described by the descriptor in a taproot leaf context.
- Fails when any keys in the descriptor are indeterminate or the script 
- descriptor is illegal in a taproot descriptor leaf. Only `Pk` expressions are 
- currently permitted.
--}
+
+-- | Produce the script described by the descriptor in a taproot leaf context.
+--  Fails when any keys in the descriptor are indeterminate or the script
+--  descriptor is illegal in a taproot descriptor leaf. Only `Pk` expressions are
+--  currently permitted.
 compileTapLeaf :: ScriptDescriptor -> Maybe Script
 compileTapLeaf = \case
     Pk keyDesc -> do
@@ -197,12 +198,14 @@ compileTapLeaf = \case
     SortedMulti{} -> Nothing
     Raw{} -> Nothing
 
+
 data TransactionScripts = TransactionScripts
     { txScriptPubKey :: Script
     , txRedeemScript :: Maybe Script
     , txWitnessScript :: Maybe Script
     }
     deriving (Eq, Show)
+
 
 outputDescriptorScripts :: OutputDescriptor -> Maybe TransactionScripts
 outputDescriptorScripts =
@@ -256,20 +259,20 @@ outputDescriptorScripts =
         P2TR{} -> Nothing
         Addr _ad -> Nothing
 
-{- | For key families, get the key at the given index.  Otherwise, return the input key.
 
-  @since 0.2.1
--}
+-- | For key families, get the key at the given index.  Otherwise, return the input key.
+--
+--   @since 0.2.1
 keyAtIndex :: Word32 -> Key -> Key
 keyAtIndex ix = \case
     XPub xpub path HardKeys -> XPub xpub (path :| ix) Single
     XPub xpub path SoftKeys -> XPub xpub (path :/ ix) Single
     key -> key
 
-{- | Specialize key families occurring in the descriptor to the given index
 
- @since 0.2.1
--}
+-- | Specialize key families occurring in the descriptor to the given index
+--
+--  @since 0.2.1
 outputDescriptorAtIndex :: KeyIndex -> OutputDescriptor -> OutputDescriptor
 outputDescriptorAtIndex ix = \case
     o@ScriptPubKey{} -> o
@@ -283,10 +286,10 @@ outputDescriptorAtIndex ix = \case
         P2TR (keyDescriptorAtIndex ix kd) (treeDescriptorAtIndex ix <$> td)
     a@Addr{} -> a
 
-{- | Specialize key families occurring in the descriptor to the given index
 
- @since 0.2.1
--}
+-- | Specialize key families occurring in the descriptor to the given index
+--
+--  @since 0.2.1
 scriptDescriptorAtIndex :: KeyIndex -> ScriptDescriptor -> ScriptDescriptor
 scriptDescriptorAtIndex ix = \case
     Pk kd -> Pk $ specialize kd
@@ -297,12 +300,13 @@ scriptDescriptorAtIndex ix = \case
   where
     specialize = keyDescriptorAtIndex ix
 
-{- | Specialize key families occurring in the descriptor to the given index
 
- @since 0.2.1
--}
+-- | Specialize key families occurring in the descriptor to the given index
+--
+--  @since 0.2.1
 keyDescriptorAtIndex :: KeyIndex -> KeyDescriptor -> KeyDescriptor
 keyDescriptorAtIndex ix keyDescriptor = keyDescriptor{keyDef = keyAtIndex ix $ keyDef keyDescriptor}
+
 
 -- | Specialize key families occurring in the tree descriptor to the given index
 treeDescriptorAtIndex :: KeyIndex -> TreeDescriptor -> TreeDescriptor
@@ -311,11 +315,11 @@ treeDescriptorAtIndex ix = \case
     TapBranch l r ->
         TapBranch (treeDescriptorAtIndex ix l) (treeDescriptorAtIndex ix r)
 
-{- | Produce the psbt input parameters needed to spend an output from the
-descriptor.  Caveat: This construction fails on `Combo` and `Addr` outputs.
 
- @since 0.2.1
--}
+-- | Produce the psbt input parameters needed to spend an output from the
+-- descriptor.  Caveat: This construction fails on `Combo` and `Addr` outputs.
+--
+--  @since 0.2.1
 toPsbtInput ::
     -- | Transaction being spent
     Tx ->
@@ -402,6 +406,7 @@ toPsbtInput tx ix descriptor = case descriptor of
         | n > 0 = safeIndex xs (n - 1)
     safeIndex _ _ = Left $ OutputIndexOOB tx ix
 
+
 data PsbtInputError
     = OutputIndexOOB Tx Int
     | CompileError ScriptDescriptor
@@ -409,7 +414,9 @@ data PsbtInputError
     | InvalidOutput OutputDescriptor
     deriving (Eq, Show)
 
+
 instance Exception PsbtInputError
+
 
 hdPath :: KeyDescriptor -> HashMap PubKeyI (Fingerprint, [KeyIndex])
 hdPath k@(KeyDescriptor origin theKeyDef) = fromMaybe mempty $ do
@@ -436,10 +443,12 @@ hdPath k@(KeyDescriptor origin theKeyDef) = fromMaybe mempty $ do
                         )
             _ -> Nothing
 
+
 keyPath :: Key -> Maybe DerivPath
 keyPath = \case
     XPub _ path Single -> Just path
     _ -> Nothing
+
 
 scriptKeys :: ScriptDescriptor -> [KeyDescriptor]
 scriptKeys = \case
@@ -449,10 +458,12 @@ scriptKeys = \case
     SortedMulti _ ks -> ks
     Raw{} -> mempty
 
+
 treeScripts :: TreeDescriptor -> [ScriptDescriptor]
 treeScripts = \case
     TapLeaf sd -> [sd]
     TapBranch l r -> treeScripts l <> treeScripts r
+
 
 -- | Extract pubkeys from an 'OutputDescriptor' where possible
 outputDescriptorPubKeys :: OutputDescriptor -> [PubKeyI]
@@ -469,9 +480,11 @@ outputDescriptorPubKeys = \case
             <> concat (treeDescriptorPubKeys <$> td)
     Addr _ad -> mempty
 
+
 -- | Extract pubkeys from a 'ScriptDescriptor' where possible
 scriptDescriptorPubKeys :: ScriptDescriptor -> [PubKeyI]
 scriptDescriptorPubKeys = mapMaybe keyDescPubKey . scriptKeys
+
 
 -- | Extract pubkeys from a 'TreeDescriptor' where possible
 treeDescriptorPubKeys :: TreeDescriptor -> [PubKeyI]

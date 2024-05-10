@@ -48,6 +48,7 @@ import Language.Bitcoin.Utils (
     maybeFail,
  )
 
+
 -- | An 'OutputDescriptor' with checksum details
 data ChecksumDescriptor = ChecksumDescriptor
     { descriptor :: OutputDescriptor
@@ -59,20 +60,23 @@ data ChecksumDescriptor = ChecksumDescriptor
     }
     deriving (Eq, Show)
 
+
 -- | The status of an output descriptor's checksum
 data ChecksumStatus
     = -- | Checksum provided is valid
       Valid
     | -- | Checksum provided is invalid
       Invalid
+        -- | The invalid checksum
         Text
-        -- ^ The invalid checksum
     | -- | Checksum is not provided
       Absent
     deriving (Eq, Show)
 
+
 parseDescriptor :: Network -> Text -> Either String ChecksumDescriptor
 parseDescriptor = A.parseOnly . outputDescriptorParser
+
 
 outputDescriptorParser :: Network -> Parser ChecksumDescriptor
 outputDescriptorParser net =
@@ -104,6 +108,7 @@ outputDescriptorParser net =
         application "addr" (A.manyTill A.anyChar $ A.char ')')
             >>= maybeFail "descriptorParser: unable to parse address" Addr . textToAddr net . pack
 
+
 scriptDescriptorParser :: Network -> Parser ScriptDescriptor
 scriptDescriptorParser net = pkP <|> pkhP <|> rawP <|> multiP <|> sortedMultiP
   where
@@ -118,8 +123,10 @@ scriptDescriptorParser net = pkP <|> pkhP <|> rawP <|> multiP <|> sortedMultiP
 
     keyList = argList kp
 
+
 parseKeyDescriptor :: Network -> Text -> Either String KeyDescriptor
 parseKeyDescriptor net = A.parseOnly $ keyDescriptorParser net
+
 
 keyDescriptorParser :: Network -> Parser KeyDescriptor
 keyDescriptorParser net = KeyDescriptor <$> originP <*> keyP
@@ -148,6 +155,7 @@ keyDescriptorParser net = KeyDescriptor <$> originP <*> keyP
 
     famP = (HardKeys <$ A.string "/*'") <|> (SoftKeys <$ A.string "/*") <|> pure Single
 
+
 pathP :: Parser DerivPath
 pathP = go Deriv
   where
@@ -159,8 +167,10 @@ pathP = go Deriv
         isHard <- isJust <$> optional (A.char '\'' <|> A.char 'h')
         return $ bool (d :/) (d :|) isHard n
 
+
 parseTreeDescriptor :: Network -> Text -> Either String TreeDescriptor
 parseTreeDescriptor net = A.parseOnly $ treeDescriptorParser net
+
 
 treeDescriptorParser :: Network -> Parser TreeDescriptor
 treeDescriptorParser net =
@@ -168,6 +178,7 @@ treeDescriptorParser net =
         <|> braces (TapBranch <$> treeParser <*> comma treeParser)
   where
     treeParser = treeDescriptorParser net
+
 
 checksumParser :: Parser OutputDescriptor -> Parser ChecksumDescriptor
 checksumParser p = do

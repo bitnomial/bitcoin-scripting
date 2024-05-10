@@ -36,6 +36,7 @@ import Language.Bitcoin.Utils (
     showText,
  )
 
+
 descriptorToText :: Network -> OutputDescriptor -> Text
 descriptorToText net = \case
     ScriptPubKey x -> sdToText x
@@ -56,11 +57,13 @@ descriptorToText net = \case
 
     addrErr = error "Unable to parse address"
 
+
 descriptorToTextWithChecksum :: Network -> OutputDescriptor -> Text
 descriptorToTextWithChecksum net desc =
     descText <> maybe "" ("#" <>) (descriptorChecksum descText)
   where
     descText = descriptorToText net desc
+
 
 scriptDescriptorToText :: Network -> ScriptDescriptor -> Text
 scriptDescriptorToText net = \case
@@ -73,6 +76,7 @@ scriptDescriptorToText net = \case
         applicationText "sortedmulti" . intercalate "," $ showText k : (keyToText <$> ks)
   where
     keyToText = keyDescriptorToText net
+
 
 keyDescriptorToText :: Network -> KeyDescriptor -> Text
 keyDescriptorToText net (KeyDescriptor o k) = maybe mempty originText o <> definitionText
@@ -89,6 +93,7 @@ keyDescriptorToText net (KeyDescriptor o k) = maybe mempty originText o <> defin
         Single -> ""
         HardKeys -> "/*'"
         SoftKeys -> "/*"
+
 
 treeDescriptorToText :: Network -> TreeDescriptor -> Text
 treeDescriptorToText net = \case

@@ -27,14 +27,21 @@ import Language.Bitcoin.Utils (
     spacePadded,
  )
 
+
 parseMiniscript :: Network -> Text -> Either String Miniscript
 parseMiniscript net = A.parseOnly $ miniscriptParser net
+
 
 miniscriptParser :: Network -> Parser Miniscript
 miniscriptParser net = annotP expression <|> expression
   where
     expression =
-        keyP <|> keyCP <|> keyHP <|> keyHCP <|> olderP <|> afterP
+        keyP
+            <|> keyCP
+            <|> keyHP
+            <|> keyHCP
+            <|> olderP
+            <|> afterP
             <|> sha256P
             <|> ripemd160P
             <|> hash256P
@@ -80,7 +87,8 @@ miniscriptParser net = annotP expression <|> expression
 
     andOrP =
         application "andor" $
-            AndOr <$> mp
+            AndOr
+                <$> mp
                 <*> comma mp
                 <*> comma mp
 
@@ -96,7 +104,8 @@ miniscriptParser net = annotP expression <|> expression
 
     letP = do
         void $ A.string "let"
-        Let <$> spacePadded varIdentP
+        Let
+            <$> spacePadded varIdentP
             <*> (A.char '=' >> spacePadded mp)
             <*> (A.string "in" >> spacePadded mp)
 
