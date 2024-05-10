@@ -18,20 +18,11 @@ import Data.Bool (bool)
 import qualified Data.ByteString as BS
 import Data.Maybe (fromMaybe, isJust)
 import Data.Text (Text, pack)
-import Haskoin (
-    DerivPath,
-    DerivPathI (..),
-    Network,
-    fromWif,
-    importPubKey,
-    textToAddr,
-    textToFingerprint,
-    wrapPubKey,
-    xPubImport,
- )
-
-import Data.Serialize (decode)
 import qualified Data.Text as Text
+import Haskoin.Address (textToAddr)
+import Haskoin.Crypto (DerivPath, DerivPathI (..), fromWif, importPubKey, textToFingerprint, wrapPubKey, xPubImport)
+import Haskoin.Network (Network)
+import Haskoin.Util (unmarshal)
 import Language.Bitcoin.Script.Descriptors.Checksum (
     descriptorChecksum,
     validDescriptorChecksum,
@@ -44,6 +35,7 @@ import Language.Bitcoin.Utils (
     braces,
     brackets,
     comma,
+    globalContext,
     hex,
     maybeFail,
  )
@@ -141,17 +133,17 @@ keyDescriptorParser net = KeyDescriptor <$> originP <*> keyP
 
     xOnlyPubP = do
         bs <- hex
-        either fail (return . XOnlyPub) $ decode bs
+        either fail (return . XOnlyPub) $ unmarshal globalContext bs
 
     pubP = do
         bs <- hex
-        maybeFail "Unable to parse pubkey" (toPubKey bs) $ importPubKey bs
+        maybeFail "Unable to parse pubkey" (toPubKey bs) $ importPubKey globalContext bs
 
-    toPubKey bs = Pubkey . wrapPubKey (isCompressed bs)
+    toPubKey bs = PubKey . wrapPubKey (isCompressed bs)
     isCompressed bs = BS.length bs == 33
 
     wifP = A.many1' alphanum >>= maybeFail "Unable to parse WIF secret key" SecretKey . fromWif net . pack
-    xpubP = A.many1' alphanum >>= maybeFail "Unable to parse xpub" id . xPubImport net . pack
+    xpubP = A.many1' alphanum >>= maybeFail "Unable to parse xpub" id . xPubImport net globalContext . pack
 
     famP = (HardKeys <$ A.string "/*'") <|> (SoftKeys <$ A.string "/*") <|> pure Single
 

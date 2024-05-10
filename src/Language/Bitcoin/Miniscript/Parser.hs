@@ -11,8 +11,7 @@ import Control.Monad (void)
 import Data.Attoparsec.Text (Parser)
 import qualified Data.Attoparsec.Text as A
 import Data.Text (Text, pack)
-import Haskoin.Constants (Network)
-
+import Haskoin.Network (Network)
 import Language.Bitcoin.Miniscript.Syntax (
     Miniscript (..),
     Value (..),

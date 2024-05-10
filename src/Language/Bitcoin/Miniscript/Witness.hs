@@ -33,11 +33,12 @@ import qualified Data.Map.Strict as Map
 import Data.Maybe (catMaybes, mapMaybe)
 import Data.Serialize (encode)
 import Data.Text (Text)
-import Haskoin.Crypto (Sig)
-import Haskoin.Keys (
-    PubKeyI (..),
+import Haskoin.Crypto (
+    PublicKey (..),
+    Sig,
     exportPubKey,
  )
+import Haskoin.Network (Network)
 import Haskoin.Script (
     Script (..),
     ScriptOp (..),
@@ -46,7 +47,6 @@ import Haskoin.Script (
     encodeTxSig,
     opPushData,
  )
-
 import Language.Bitcoin.Miniscript.Syntax (
     Miniscript (..),
     Value (..),
@@ -55,6 +55,7 @@ import Language.Bitcoin.Script.Descriptors.Syntax (
     KeyDescriptor,
     keyDescPubKey,
  )
+import Language.Bitcoin.Utils (globalContext)
 
 
 data Signature = Signature
@@ -64,18 +65,18 @@ data Signature = Signature
     deriving (Eq, Show)
 
 
-newtype OrdPubKeyI = OrdPubKeyI {unOrdPubKeyI :: PubKeyI}
+newtype OrdPublicKey = OrdPublicKey {unOrdPublicKey :: PublicKey}
     deriving (Eq, Show)
 
 
-instance Ord OrdPubKeyI where
-    compare = compare `on` toOrdered . unOrdPubKeyI
+instance Ord OrdPublicKey where
+    compare = compare `on` toOrdered . unOrdPublicKey
       where
-        toOrdered (PubKeyI pk c) = exportPubKey c pk
+        toOrdered (PublicKey pk c) = exportPubKey globalContext c pk
 
 
 data SatisfactionContext = SatisfactionContext
-    { signatures :: Map OrdPubKeyI Signature
+    { signatures :: Map OrdPublicKey Signature
     , hashPreimages :: Map ByteString ByteString
     }
     deriving (Eq, Show)
@@ -94,8 +95,8 @@ instance Monoid SatisfactionContext where
 
 
 -- | Use with the monoid instance to add a signature to the 'SatisfactionContext'
-signature :: PubKeyI -> Signature -> SatisfactionContext
-signature pk = (`SatisfactionContext` mempty) . Map.singleton (OrdPubKeyI pk)
+signature :: PublicKey -> Signature -> SatisfactionContext
+signature pk = (`SatisfactionContext` mempty) . Map.singleton (OrdPublicKey pk)
 
 
 -- | Use with the monoid instance to add preimage to the 'SatisfactionContext'
@@ -108,16 +109,16 @@ preimage ::
 preimage h = SatisfactionContext mempty . Map.singleton h
 
 
-satisfactionContext :: [(ByteString, ByteString)] -> [(PubKeyI, Signature)] -> SatisfactionContext
+satisfactionContext :: [(ByteString, ByteString)] -> [(PublicKey, Signature)] -> SatisfactionContext
 satisfactionContext preimages sigs =
     SatisfactionContext
-        { signatures = Map.fromList $ first OrdPubKeyI <$> sigs
+        { signatures = Map.fromList $ first OrdPublicKey <$> sigs
         , hashPreimages = Map.fromList preimages
         }
 
 
-lookupSignature :: PubKeyI -> SatisfactionContext -> Maybe Signature
-lookupSignature pk = Map.lookup (OrdPubKeyI pk) . signatures
+lookupSignature :: PublicKey -> SatisfactionContext -> Maybe Signature
+lookupSignature pk = Map.lookup (OrdPublicKey pk) . signatures
 
 
 lookupPreimage :: ByteString -> SatisfactionContext -> Maybe ByteString
@@ -175,12 +176,16 @@ data SatResult = SatResult
 
 
 -- | Compute a scriptinput which satisfies this miniscript
-satisfy :: ChainState -> SatisfactionContext -> Miniscript -> Either SatisfactionError Script
-satisfy chainState sc = fmap (Script . satScript) . sat . (`runReader` mempty) . satisfy' chainState sc
+satisfy :: Network -> ChainState -> SatisfactionContext -> Miniscript -> Either SatisfactionError Script
+satisfy net chainState sc =
+    fmap (Script . satScript)
+        . sat
+        . (`runReader` mempty)
+        . satisfy' net chainState sc
 
 
-satisfy' :: ChainState -> SatisfactionContext -> Miniscript -> Reader (Map Text Miniscript) SatResult
-satisfy' chainState sc = \case
+satisfy' :: Network -> ChainState -> SatisfactionContext -> Miniscript -> Reader (Map Text Miniscript) SatResult
+satisfy' net chainState sc = \case
     Boolean False ->
         return
             SatResult
@@ -356,7 +361,7 @@ satisfy' chainState sc = \case
     Var name -> requiredValue name satisfyInContext
     Let name x b -> local (Map.insert name x) $ satisfyInContext b
   where
-    satisfyInContext = satisfy' chainState sc
+    satisfyInContext = satisfy' net chainState sc
 
     -- it is still possible to dissatisfy when we do not know the preimage since
     -- we can easily detect that some value is _not_ it
@@ -365,13 +370,8 @@ satisfy' chainState sc = \case
             satVals (fromScript [opPushData p]) (fromScript [opPushData $ otherValue p])
         | otherwise = satErr $ MissingPreimage h
 
-
-pushSig :: Signature -> ScriptOp
-pushSig (Signature s sh) = opPushData . encodeTxSig $ TxSignature s sh
-
-
-pushKey :: PubKeyI -> ScriptOp
-pushKey (PubKeyI k c) = opPushData $ exportPubKey c k
+    pushSig (Signature s sh) = opPushData . encodeTxSig net globalContext $ TxSignature s sh
+    pushKey (PublicKey k c) = opPushData $ exportPubKey globalContext c k
 
 
 -- TODO fingerprinting implications

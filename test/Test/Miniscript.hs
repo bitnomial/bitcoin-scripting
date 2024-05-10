@@ -8,15 +8,15 @@ module Test.Miniscript (
     miniscriptTests,
 ) where
 
-import Haskoin.Constants (btc)
-import Test.Tasty (TestTree, testGroup)
-
+import Haskoin.Network (btc)
 import Language.Bitcoin.Miniscript (miniscriptToText, parseMiniscript)
 import Test.Example (testTextRep)
 import Test.Miniscript.Compiler (compilerTests)
 import Test.Miniscript.Examples
 import Test.Miniscript.Types (typeCheckerTests)
 import Test.Miniscript.Witness (witnessTests)
+import Test.Tasty (TestTree, testGroup)
+
 
 
 miniscriptTests :: TestTree

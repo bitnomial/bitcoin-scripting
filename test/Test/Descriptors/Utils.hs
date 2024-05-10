@@ -1,4 +1,5 @@
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
@@ -7,54 +8,47 @@ module Test.Descriptors.Utils (
 ) where
 
 import qualified Data.ByteString as BS
-import Data.Bytes.Put (runPutS)
-import Data.Bytes.Serial (serialize)
 import qualified Data.HashMap.Strict as HM
 import Data.List (sort)
 import Data.Maybe (fromJust, mapMaybe)
 import Data.Serialize (encode)
-import Haskoin (
+import Haskoin.Address (textToAddr)
+import Haskoin.Crypto (
     DerivPath,
     DerivPathI (..),
-    MAST (MASTBranch, MASTLeaf),
-    OutPoint (OutPoint),
-    PubKeyI (PubKeyI, pubKeyPoint),
-    Script (Script),
-    ScriptOp (..),
-    ScriptOutput (..),
-    XOnlyPubKey (XOnlyPubKey),
-    XPubKey,
+    PublicKey (..),
+    XPubKey (..),
     addressHash,
-    btc,
-    btcRegTest,
-    buildTx,
-    decodeHex,
     derivePubKey,
     derivePubPath,
-    emptyInput,
-    encodeOutput,
-    inputHDKeypaths,
-    inputRedeemScript,
-    inputWitnessScript,
-    mastCommitment,
-    nonWitnessUtxo,
-    opPushData,
     pathToList,
     ripemd160,
     secKey,
-    textToAddr,
-    toP2SH,
-    toP2WSH,
     toSoft,
-    txOut,
-    witnessUtxo,
     xPubFP,
     xPubImport,
-    xPubKey,
  )
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.HUnit (testCase, testCaseSteps, (@?=))
-
+import Haskoin.Network (btc, btcRegTest)
+import Haskoin.Script (
+    Script (..),
+    ScriptOp (..),
+    ScriptOutput (..),
+    encodeOutput,
+    opPushData,
+    toP2SH,
+    toP2WSH,
+ )
+import Haskoin.Transaction (
+    Input (..),
+    MAST (..),
+    OutPoint (..),
+    Tx (..),
+    XOnlyPubKey (..),
+    buildTx,
+    emptyInput,
+    mastCommitment,
+ )
+import Haskoin.Util (decodeHex, marshal)
 import Language.Bitcoin.Script.Descriptors (
     Key (XPub),
     KeyCollection (..),
@@ -71,6 +65,9 @@ import Language.Bitcoin.Script.Descriptors (
     pubKey,
     toPsbtInput,
  )
+import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.HUnit (testCase, testCaseSteps, (@?=))
+import Test.Utils (globalContext)
 
 
 testDescriptorUtils :: TestTree
@@ -229,22 +226,41 @@ testPk :: TestTree
 testPk = testCase "Pk" $ compile example @?= Just expected
   where
     example = Pk $ pubKey key0
-    expected = Script [opPushData (encode key0), OP_CHECKSIG]
+    expected =
+        Script
+            [ opPushData $ marshal globalContext key0
+            , OP_CHECKSIG
+            ]
 
 
 testPkh :: TestTree
 testPkh = testCase "Pkh" $ compile example @?= Just expected
   where
     example = Pkh $ pubKey key0
-    expected = Script [OP_DUP, OP_HASH160, opPushData (encode keyHash), OP_EQUALVERIFY, OP_CHECKSIG]
-    keyHash = ripemd160 $ encode key0
+    expected =
+        Script
+            [ OP_DUP
+            , OP_HASH160
+            , opPushData $ encode keyHash
+            , OP_EQUALVERIFY
+            , OP_CHECKSIG
+            ]
+    keyHash = ripemd160 $ marshal globalContext key0
 
 
 testMulti :: TestTree
 testMulti = testCase "Multi" $ compile example @?= Just expected
   where
     example = Multi 2 $ pubKey <$> ks
-    expected = Script [OP_2, opPushData (encode k0), opPushData (encode k1), opPushData (encode k2), OP_3, OP_CHECKMULTISIG]
+    expected =
+        Script
+            [ OP_2
+            , opPushData $ marshal globalContext k0
+            , opPushData $ marshal globalContext k1
+            , opPushData $ marshal globalContext k2
+            , OP_3
+            , OP_CHECKMULTISIG
+            ]
     ks@[k0, k1, k2] = take 3 testPubKeys
 
 
@@ -254,7 +270,7 @@ testSortedMulti = testCase "SortedMulti" $ compile example @?= Just expected
     example = SortedMulti 2 $ pubKey <$> ks
     expected = Script [OP_2, opPushData k0, opPushData k1, opPushData k2, OP_3, OP_CHECKMULTISIG]
     ks = take 3 testPubKeys
-    [k0, k1, k2] = sort $ encode <$> ks
+    [k0, k1, k2] = sort $ marshal globalContext <$> ks
 
 
 testCompileTree :: TestTree
@@ -271,7 +287,7 @@ testTapLeaf =
     expected =
         MASTLeaf 0xc0 $
             Script
-                [ opPushData (encode $ XOnlyPubKey $ pubKeyPoint $ key0)
+                [ opPushData . marshal globalContext $ XOnlyPubKey key0.point
                 , OP_CHECKSIG
                 ]
 
@@ -290,13 +306,13 @@ testTapBranch =
         MASTBranch
             ( MASTLeaf 0xc0 $
                 Script
-                    [ opPushData (encode $ XOnlyPubKey $ pubKeyPoint $ key1)
+                    [ opPushData . marshal globalContext $ XOnlyPubKey key1.point
                     , OP_CHECKSIG
                     ]
             )
             ( MASTLeaf 0xc0 $
                 Script
-                    [ opPushData (encode $ XOnlyPubKey $ pubKeyPoint $ key0)
+                    [ opPushData . marshal globalContext $ XOnlyPubKey key0.point
                     , OP_CHECKSIG
                     ]
             )
@@ -313,7 +329,7 @@ testTapLeafPk = testCase "Pk" $ compileTapLeaf example @?= Just expected
     example = Pk $ pubKey key0
     expected =
         Script
-            [ opPushData (encode $ XOnlyPubKey $ pubKeyPoint $ key0)
+            [ opPushData . marshal globalContext $ XOnlyPubKey key0.point
             , OP_CHECKSIG
             ]
 
@@ -349,8 +365,8 @@ testOutputDescriptorAtIndex = testCase "outputDescriptorAtIndex" $ do
     descFamC = P2WPKH keyFamA
     descC = P2WPKH keyA
 
-    descFamD = P2TR keyFamA (Just $ TapLeaf $ Pk $ keyFamB)
-    descD = P2TR keyA (Just $ TapLeaf $ Pk $ keyB)
+    descFamD = P2TR keyFamA (Just . TapLeaf $ Pk keyFamB)
+    descD = P2TR keyA (Just . TapLeaf $ Pk keyB)
 
     keyFamA = KeyDescriptor Nothing $ XPub someXPubA basePath HardKeys
     keyA = KeyDescriptor Nothing $ XPub someXPubA (basePath :| 5) Single
@@ -382,7 +398,7 @@ testToPsbtInput = testCaseSteps "toPsbtInput" $ \step -> do
     step "P2TR"
     toPsbtInput trTx 0 trDescriptor @?= Right expectedTrInput
   where
-    p2pkhTx = buildTx [outPoint] [(PayPKHash hashA, 1_000_000)]
+    p2pkhTx = buildTx globalContext [outPoint] [(PayPKHash hashA, 1_000_000)]
     p2pkhDescriptor = ScriptPubKey $ Pkh keyA
     expectedP2pkhInput =
         emptyInput
@@ -390,75 +406,74 @@ testToPsbtInput = testCaseSteps "toPsbtInput" $ \step -> do
             , inputHDKeypaths = hdKeypathA
             }
 
-    p2shMsTx = buildTx [outPoint] [(msScriptOutput, 1_000_000)]
+    p2shMsTx = buildTx globalContext [outPoint] [(msScriptOutput, 1_000_000)]
     p2shMsDescriptor = P2SH msDescriptor
     expectedP2shMsInput =
         emptyInput
             { nonWitnessUtxo = Just p2shMsTx
-            , inputRedeemScript = Just $ encodeOutput msScriptOutput
+            , inputRedeemScript = Just $ encodeOutput globalContext msScriptOutput
             , inputHDKeypaths = hdKeypathA <> hdKeypathB
             }
     msScriptOutput = PayMulSig [pubKeyA, pubKeyB] 1
     msDescriptor = Multi 1 [keyA, keyB]
 
     keyA = KeyDescriptor Nothing $ XPub someXPubA path Single
-    pubKeyA = (`PubKeyI` True) . xPubKey $ derivePubPath softPath someXPubA
-    hashA = addressHash . runPutS $ serialize pubKeyA
-    hdKeypathA = HM.singleton pubKeyA (xPubFP someXPubA, pathToList path)
+    pubKeyA = PublicKey (derivePubPath globalContext softPath someXPubA).key True
+    hashA = addressHash $ marshal globalContext pubKeyA
+    hdKeypathA = HM.singleton pubKeyA (xPubFP globalContext someXPubA, pathToList path)
 
     keyB = KeyDescriptor Nothing $ XPub someXPubB path Single
-    pubKeyB = (`PubKeyI` True) . xPubKey $ derivePubPath softPath someXPubB
-    hdKeypathB = HM.singleton pubKeyB (xPubFP someXPubB, pathToList path)
+    pubKeyB = PublicKey (derivePubPath globalContext softPath someXPubB).key True
+    hdKeypathB = HM.singleton pubKeyB (xPubFP globalContext someXPubB, pathToList path)
 
     p2shWpkhDescriptor = WrappedWPkh keyA
-    p2shWpkhTx = buildTx [outPoint] [(p2shWpkhScriptOutput, 1_000_000)]
+    p2shWpkhTx = buildTx globalContext [outPoint] [(p2shWpkhScriptOutput, 1_000_000)]
     expectedP2shWpkhInput =
         emptyInput
-            { witnessUtxo = Just $ (head . txOut) p2shWpkhTx
-            , inputRedeemScript = Just $ encodeOutput wpkhScriptOutputA
+            { witnessUtxo = Just $ head p2shWpkhTx.outputs
+            , inputRedeemScript = Just $ encodeOutput globalContext wpkhScriptOutputA
             , inputHDKeypaths = hdKeypathA
             }
-    p2shWpkhScriptOutput = toP2SH $ encodeOutput wpkhScriptOutputA
+    p2shWpkhScriptOutput = toP2SH $ encodeOutput globalContext wpkhScriptOutputA
     wpkhScriptOutputA = PayWitnessPKHash hashA
 
-    p2shWshMsTx = buildTx [outPoint] [(p2shWshMsOutput, 1_000_000)]
+    p2shWshMsTx = buildTx globalContext [outPoint] [(p2shWshMsOutput, 1_000_000)]
     p2shWshMsDescriptor = WrappedWSh msDescriptor
     expectedP2shWshMsInput =
         emptyInput
-            { witnessUtxo = Just $ (head . txOut) p2shWshMsTx
-            , inputRedeemScript = Just $ encodeOutput wshMsOutput
-            , inputWitnessScript = Just $ encodeOutput msScriptOutput
+            { witnessUtxo = Just $ head p2shWshMsTx.outputs
+            , inputRedeemScript = Just $ encodeOutput globalContext wshMsOutput
+            , inputWitnessScript = Just $ encodeOutput globalContext msScriptOutput
             , inputHDKeypaths = hdKeypathA <> hdKeypathB
             }
-    p2shWshMsOutput = toP2SH $ encodeOutput wshMsOutput
-    wshMsOutput = toP2WSH $ encodeOutput msScriptOutput
+    p2shWshMsOutput = toP2SH $ encodeOutput globalContext wshMsOutput
+    wshMsOutput = toP2WSH $ encodeOutput globalContext msScriptOutput
 
-    wpkhTx = buildTx [outPoint] [(PayWitnessPKHash hashA, 1_000_000)]
+    wpkhTx = buildTx globalContext [outPoint] [(PayWitnessPKHash hashA, 1_000_000)]
     wpkhDescriptor = P2WPKH keyA
     expectedWpkhInput =
         emptyInput
-            { witnessUtxo = Just . head $ txOut wpkhTx
+            { witnessUtxo = Just $ head wpkhTx.outputs
             , inputHDKeypaths = hdKeypathA
             }
-    wshMsTx = buildTx [outPoint] [(wshMsOutput, 1_000_000)]
+    wshMsTx = buildTx globalContext [outPoint] [(wshMsOutput, 1_000_000)]
     wshMsDescriptor = P2WSH msDescriptor
     expectedWshMsInput =
         emptyInput
-            { witnessUtxo = Just $ (head . txOut) wshMsTx
-            , inputWitnessScript = Just $ encodeOutput msScriptOutput
+            { witnessUtxo = Just $ head wshMsTx.outputs
+            , inputWitnessScript = Just $ encodeOutput globalContext msScriptOutput
             , inputHDKeypaths = hdKeypathA <> hdKeypathB
             }
 
-    trTx = buildTx [outPoint] [(trOut, 1_000_000)]
+    trTx = buildTx globalContext [outPoint] [(trOut, 1_000_000)]
     trOut =
-        PayWitness 0x01 $
-            fromJust $
-                decodeHex $
-                    "da4710964f7852695de2da025290e24af6d8c281de5a0b902b7135fd9fd74d21"
+        PayWitness 0x01
+            . fromJust
+            $ decodeHex "da4710964f7852695de2da025290e24af6d8c281de5a0b902b7135fd9fd74d21"
     trDescriptor = P2TR keyA Nothing
     expectedTrInput =
         emptyInput
-            { witnessUtxo = Just $ (head . txOut) trTx
+            { witnessUtxo = Just $ head trTx.outputs
             , inputHDKeypaths = hdKeypathA
             }
 
@@ -467,9 +482,9 @@ testToPsbtInput = testCaseSteps "toPsbtInput" $ \step -> do
     Just softPath = toSoft path
 
 
-key0 :: PubKeyI
-testPubKeys :: [PubKeyI]
-testPubKeys@(key0 : _) = (`PubKeyI` True) . derivePubKey <$> mapMaybe (secKey . mkSecKey) [1 .. 255]
+key0 :: PublicKey
+testPubKeys :: [PublicKey]
+testPubKeys@(key0 : _) = (`PublicKey` True) . derivePubKey globalContext <$> mapMaybe (secKey . mkSecKey) [1 .. 255]
   where
     mkSecKey i = BS.pack $ replicate 31 0 <> [i]
 
@@ -478,10 +493,12 @@ someXPubA, someXPubB :: XPubKey
 Just someXPubA =
     xPubImport
         btc
+        globalContext
         "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
 Just someXPubB =
     xPubImport
         btc
+        globalContext
         "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
 
 

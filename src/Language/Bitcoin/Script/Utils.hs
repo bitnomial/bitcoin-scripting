@@ -10,7 +10,8 @@ import Data.Bits (clearBit, setBit, testBit)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.Word (Word8)
-import Haskoin (ScriptOp, intToScriptOp, opPushData)
+import Haskoin.Script (ScriptOp, intToScriptOp, opPushData)
+
 
 
 -- | Decode a numeric stack value

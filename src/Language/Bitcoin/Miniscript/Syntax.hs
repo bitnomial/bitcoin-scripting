@@ -28,7 +28,6 @@ module Language.Bitcoin.Miniscript.Syntax (
 import Data.ByteString (ByteString)
 import Data.Foldable (foldr')
 import Data.Text (Text)
-
 import Language.Bitcoin.Script.Descriptors.Syntax (KeyDescriptor)
 
 

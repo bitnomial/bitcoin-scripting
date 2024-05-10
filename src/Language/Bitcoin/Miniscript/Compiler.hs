@@ -28,7 +28,6 @@ import Haskoin.Script (
     ScriptOp (..),
     opPushData,
  )
-
 import Language.Bitcoin.Miniscript.Syntax (
     Miniscript (..),
     Value (..),

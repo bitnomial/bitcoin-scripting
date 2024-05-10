@@ -6,20 +6,17 @@ module Test.Descriptors (
     descriptorTests,
 ) where
 
+import Data.Maybe (fromJust, fromMaybe)
 import Data.Text (Text)
-import Haskoin.Constants (btc)
-import Haskoin.Keys (
+import Haskoin.Crypto (
     DerivPathI (..),
-    PubKeyI (..),
+    PublicKey (..),
     importPubKey,
     xPubImport,
  )
-import Haskoin.Util (decodeHex)
-import Test.Tasty (TestTree, testGroup)
-
-import Data.Maybe (fromJust, fromMaybe)
-import Data.Serialize (decode)
-import Haskoin (XOnlyPubKey)
+import Haskoin.Network (btc)
+import Haskoin.Transaction (XOnlyPubKey)
+import Haskoin.Util (decodeHex, unmarshal)
 import Language.Bitcoin.Script.Descriptors (
     ChecksumDescriptor (..),
     ChecksumStatus (..),
@@ -38,18 +35,22 @@ import Language.Bitcoin.Script.Descriptors (
  )
 import Test.Descriptors.Utils (testDescriptorUtils)
 import Test.Example (Example (..), testTextRep)
+import Test.Tasty (TestTree, testGroup)
+import Test.Utils (globalContext)
 
 
 descriptorTests :: TestTree
 descriptorTests =
     testGroup "descriptor tests" $
-        [ testGroup "absent checksum" $
+        [ testGroup
+            "absent checksum"
             ( testTextRep
                 (parseDescriptor btc)
                 (descriptorToText btc . descriptor)
                 <$> absentChecksumExamples
             )
-        , testGroup "valid checksum" $
+        , testGroup
+            "valid checksum"
             ( testTextRep
                 (parseDescriptor btc)
                 (descriptorToTextWithChecksum btc . descriptor)
@@ -104,20 +105,20 @@ descriptorTests =
             ]
 
 
-key :: PubKeyI -> KeyDescriptor
-key = KeyDescriptor Nothing . Pubkey
+key :: PublicKey -> KeyDescriptor
+key = KeyDescriptor Nothing . PubKey
 
 
-hexPubkey :: Text -> PubKeyI
-hexPubkey h = PubKeyI k True
+hexPubkey :: Text -> PublicKey
+hexPubkey h = PublicKey k True
   where
-    Just k = importPubKey =<< decodeHex h
+    Just k = importPubKey globalContext =<< decodeHex h
 
 
 hexXOnlyPubkey :: Text -> XOnlyPubKey
 hexXOnlyPubkey h = k
   where
-    Right k = decode $ fromJust $ decodeHex h
+    Right k = unmarshal globalContext . fromJust $ decodeHex h
 
 
 withAbsentChecksum ::
@@ -300,6 +301,7 @@ example12 =
     Just xpub =
         xPubImport
             btc
+            globalContext
             "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
 
 
@@ -315,6 +317,7 @@ example13 =
     Just xpub =
         xPubImport
             btc
+            globalContext
             "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw"
 
 
@@ -330,6 +333,7 @@ example14 =
     Just xpub =
         xPubImport
             btc
+            globalContext
             "xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL"
     fp = "d34db33f"
 
@@ -353,10 +357,12 @@ example15 =
     Just xpub1 =
         xPubImport
             btc
+            globalContext
             "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
     Just xpub2 =
         xPubImport
             btc
+            globalContext
             "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
 
 
@@ -379,10 +385,12 @@ example16 =
     Just xpub1 =
         xPubImport
             btc
+            globalContext
             "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
     Just xpub2 =
         xPubImport
             btc
+            globalContext
             "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
 
 

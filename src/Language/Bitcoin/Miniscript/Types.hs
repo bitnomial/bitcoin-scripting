@@ -22,7 +22,6 @@ import Data.Bool (bool)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Text (Text)
-
 import Language.Bitcoin.Miniscript.Syntax (
     Miniscript (..),
     Value (..),
@@ -278,7 +277,7 @@ typeCheckInContext = \case
             count f = sum . fmap (bool 0 1 . f)
             isDU m = modD m && modU m
 
-        if baseType tx == TypeB && all (== TypeW) (baseType <$> tys) && all isDU allMods
+        if baseType tx == TypeB && all ((== TypeW) . baseType) tys && all isDU allMods
             then
                 exprType
                     TypeB

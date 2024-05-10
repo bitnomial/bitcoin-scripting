@@ -4,16 +4,7 @@ module Test.Miniscript.Types (
     typeCheckerTests,
 ) where
 
-import Haskoin.Util.Arbitrary.Keys (arbitraryKeyPair)
-import Haskoin.Util.Arbitrary.Util (arbitraryBSn)
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.QuickCheck (
-    Gen,
-    forAll,
-    testProperty,
-    (===),
- )
-
+import Haskoin.Util.Arbitrary (arbitraryBSn, arbitraryKeyPair)
 import Language.Bitcoin.Miniscript (
     BaseType (..),
     Miniscript (..),
@@ -28,6 +19,15 @@ import Test.Miniscript.Examples (
     example7,
     example8,
  )
+import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.QuickCheck (
+    Gen,
+    forAll,
+    testProperty,
+    (===),
+ )
+import Test.Utils (globalContext)
+
 
 
 typeCheckerTests :: TestTree
@@ -35,7 +35,8 @@ typeCheckerTests = testGroup "type checker" [localPolicy, offeredPolicy, receive
 
 
 arbitraryKey :: Gen KeyDescriptor
-arbitraryKey = pubKey . snd <$> arbitraryKeyPair
+arbitraryKey = pubKey . snd <$> arbitraryKeyPair globalContext
+
 
 
 localPolicy :: TestTree

@@ -16,18 +16,7 @@ import Haskoin.Script (
     ScriptOp (..),
     opPushData,
  )
-import Haskoin.Util.Arbitrary.Keys (arbitraryKeyPair)
-import Haskoin.Util.Arbitrary.Util (arbitraryBSn)
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.QuickCheck (
-    Gen,
-    Property,
-    Testable,
-    forAll,
-    property,
-    (===),
- )
-
+import Haskoin.Util.Arbitrary (arbitraryBSn, arbitraryKeyPair)
 import Language.Bitcoin.Miniscript (
     Miniscript (..),
     compile,
@@ -44,7 +33,17 @@ import Test.Example (
     testExampleProperty,
  )
 import qualified Test.Miniscript.Examples as E
-import Test.Utils (forAllLabeled, pr12, pr3)
+import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.QuickCheck (
+    Gen,
+    Property,
+    Testable,
+    forAll,
+    property,
+    (===),
+ )
+import Test.Utils (forAllLabeled, globalContext, pr12, pr3)
+
 
 
 compilerTests :: TestTree
@@ -65,7 +64,8 @@ compilerTests = testGroup "compiler" examples
 
 
 arbitraryKey :: Gen KeyDescriptor
-arbitraryKey = pubKey . snd <$> arbitraryKeyPair
+arbitraryKey = pubKey . snd <$> arbitraryKeyPair globalContext
+
 
 
 keyB :: Text -> KeyDescriptor -> (Text, Miniscript, ByteString)

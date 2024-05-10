@@ -15,6 +15,7 @@ module Language.Bitcoin.Utils (
     applicationText,
     requiredContextValue,
     maybeFail,
+    globalContext,
 ) where
 
 import Control.Applicative ((<|>))
@@ -28,7 +29,10 @@ import Data.ByteString (ByteString)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Text (Text, pack)
+import Haskoin.Crypto (Ctx, createContext)
 import Haskoin.Util (decodeHex)
+import System.IO.Unsafe (unsafePerformIO)
+
 
 
 parens :: Parser a -> Parser a
@@ -89,3 +93,11 @@ maybeFail msg f = maybe (fail msg) (return . f)
 
 requiredContextValue :: (r -> Map Text c) -> e -> Text -> ReaderT r (Except e) c
 requiredContextValue f e name = asks (Map.lookup name . f) >>= maybe (lift $ throwE e) return
+
+
+-- | The global context is created once and never modified again, it is to be passed into cryptographic
+-- functions and contains a number of large data structures that are generated at runtime. Impure functions like
+-- `destroyContext` or `randomizeContext` must not be used against this global value
+globalContext :: Ctx
+globalContext = unsafePerformIO createContext
+{-# NOINLINE globalContext #-}

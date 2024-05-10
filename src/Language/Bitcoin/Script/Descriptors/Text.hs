@@ -15,24 +15,23 @@ import Data.Text (
     intercalate,
     pack,
  )
-import Haskoin (
-    Network,
-    PubKeyI (..),
-    addrToText,
-    encodeHex,
+import qualified Data.Text as Text
+import Haskoin.Address (addrToText)
+import Haskoin.Crypto (
+    PublicKey (..),
     exportPubKey,
     fingerprintToText,
     pathToStr,
     toWif,
     xPubExport,
  )
-
-import Data.Serialize (encode)
-import qualified Data.Text as Text
+import Haskoin.Network (Network)
+import Haskoin.Util (encodeHex, marshal)
 import Language.Bitcoin.Script.Descriptors.Checksum (descriptorChecksum)
 import Language.Bitcoin.Script.Descriptors.Syntax
 import Language.Bitcoin.Utils (
     applicationText,
+    globalContext,
     showText,
  )
 
@@ -84,10 +83,10 @@ keyDescriptorToText net (KeyDescriptor o k) = maybe mempty originText o <> defin
     originText (Origin fp path) = "[" <> fingerprintToText fp <> pack (pathToStr path) <> "]"
 
     definitionText = case k of
-        Pubkey (PubKeyI key c) -> encodeHex $ exportPubKey c key
+        PubKey (PublicKey key c) -> encodeHex $ exportPubKey globalContext c key
         SecretKey key -> toWif net key
-        XPub xpub path fam -> xPubExport net xpub <> (pack . pathToStr) path <> famText fam
-        XOnlyPub key -> encodeHex $ encode key
+        XPub xpub path fam -> xPubExport net globalContext xpub <> (pack . pathToStr) path <> famText fam
+        XOnlyPub key -> encodeHex $ marshal globalContext key
 
     famText = \case
         Single -> ""
