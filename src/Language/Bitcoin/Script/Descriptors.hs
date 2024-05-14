@@ -1,6 +1,5 @@
-{- | A library for working with bitcoin script descriptors. Documentation taken
- from <https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md>.
--}
+-- | A library for working with bitcoin script descriptors. Documentation taken
+--  from <https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md>.
 module Language.Bitcoin.Script.Descriptors (
     -- * Descriptors
     OutputDescriptor (..),
@@ -60,8 +59,9 @@ module Language.Bitcoin.Script.Descriptors (
     validDescriptorChecksum,
 ) where
 
+import Language.Bitcoin.Script.Descriptors.Checksum
 import Language.Bitcoin.Script.Descriptors.Parser
 import Language.Bitcoin.Script.Descriptors.Syntax
 import Language.Bitcoin.Script.Descriptors.Text
 import Language.Bitcoin.Script.Descriptors.Utils
-import Language.Bitcoin.Script.Descriptors.Checksum
+

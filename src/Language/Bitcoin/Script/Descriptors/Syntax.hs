@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 module Language.Bitcoin.Script.Descriptors.Syntax (
     OutputDescriptor (..),
     ScriptDescriptor (..),
@@ -15,20 +17,22 @@ module Language.Bitcoin.Script.Descriptors.Syntax (
 ) where
 
 import Data.ByteString (ByteString)
-import Haskoin (
-    Address,
+import Haskoin.Address (Address)
+import Haskoin.Crypto (
     DerivPath,
     Fingerprint,
-    PubKeyI (..),
-    SecKeyI,
-    XOnlyPubKey (XOnlyPubKey),
-    XPubKey (xPubKey),
-    derivePubKeyI,
+    PrivateKey,
+    PublicKey (..),
+    XPubKey (..),
     derivePubPath,
+    derivePublicKey,
     exportPubKey,
     toSoft,
     wrapPubKey,
  )
+import Haskoin.Transaction (XOnlyPubKey (..))
+import Language.Bitcoin.Utils (globalContext)
+
 
 -- | High level description for a bitcoin output
 data OutputDescriptor
@@ -54,6 +58,7 @@ data OutputDescriptor
       Addr Address
     deriving (Eq, Show)
 
+
 -- | High level description of a bitcoin script
 data ScriptDescriptor
     = -- | Require a signature for this key
@@ -68,11 +73,13 @@ data ScriptDescriptor
       Raw ByteString
     deriving (Eq, Show)
 
+
 data KeyDescriptor = KeyDescriptor
     { origin :: Maybe Origin
     , keyDef :: Key
     }
     deriving (Eq, Show)
+
 
 data Origin = Origin
     { fingerprint :: Fingerprint
@@ -80,33 +87,39 @@ data Origin = Origin
     }
     deriving (Eq, Ord, Show)
 
+
 data Key
     = -- | DER-hex encoded secp256k1 public key
-      Pubkey PubKeyI
+      PubKey PublicKey
     | -- | (de)serialized as WIF
-      SecretKey SecKeyI
+      SecretKey PrivateKey
     | XPub XPubKey DerivPath KeyCollection
     | -- | An x-only public key. The representation type used will change in the
       -- future.
       XOnlyPub XOnlyPubKey
     deriving (Eq, Show)
 
+
 data TreeDescriptor
     = TapLeaf ScriptDescriptor
     | TapBranch TreeDescriptor TreeDescriptor
     deriving (Eq, Show)
 
+
 -- | Simple explicit public key with no origin information
-pubKey :: PubKeyI -> KeyDescriptor
-pubKey = KeyDescriptor Nothing . Pubkey
+pubKey :: PublicKey -> KeyDescriptor
+pubKey = KeyDescriptor Nothing . PubKey
+
 
 -- | Simple explicit secret key with no origin information
-secKey :: SecKeyI -> KeyDescriptor
+secKey :: PrivateKey -> KeyDescriptor
 secKey = KeyDescriptor Nothing . SecretKey
+
 
 -- | Simple explicit x-only public key with no origin information
 xOnlyPubKey :: XOnlyPubKey -> KeyDescriptor
 xOnlyPubKey = KeyDescriptor Nothing . XOnlyPub
+
 
 -- | Represent whether the key corresponds to a collection (and how) or a single key.
 data KeyCollection
@@ -117,20 +130,25 @@ data KeyCollection
       SoftKeys
     deriving (Eq, Ord, Show)
 
+
 -- | Produce a key literal if possible
 keyBytes :: KeyDescriptor -> Maybe ByteString
 keyBytes = fmap toBytes . keyDescPubKey
   where
-    toBytes (PubKeyI pk c) = exportPubKey c pk
+    toBytes (PublicKey pk c) = exportPubKey globalContext c pk
+
 
 -- | Produce a pubkey if possible
-keyDescPubKey :: KeyDescriptor -> Maybe PubKeyI
+keyDescPubKey :: KeyDescriptor -> Maybe PublicKey
 keyDescPubKey (KeyDescriptor _ k) = case k of
-    Pubkey pk -> Just pk
-    SecretKey sk -> Just $ derivePubKeyI sk
-    XPub xpub path Single -> (`PubKeyI` True) . xPubKey . (`derivePubPath` xpub) <$> toSoft path
+    PubKey pk -> Just pk
+    SecretKey sk -> Just $ derivePublicKey globalContext sk
+    XPub xpub path Single -> do
+        sp <- toSoft path
+        pure $ PublicKey (derivePubPath globalContext sp xpub).key True
     XOnlyPub (XOnlyPubKey pk) -> Just $ wrapPubKey True pk
     _ -> Nothing
+
 
 -- | Test whether the key descriptor corresponds to a single key
 isDefinite :: KeyDescriptor -> Bool

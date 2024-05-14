@@ -28,7 +28,6 @@ import Haskoin.Script (
     ScriptOp (..),
     opPushData,
  )
-
 import Language.Bitcoin.Miniscript.Syntax (
     Miniscript (..),
     Value (..),
@@ -41,6 +40,7 @@ import Language.Bitcoin.Script.Descriptors.Syntax (KeyDescriptor, keyBytes)
 import Language.Bitcoin.Script.Utils (pushNumber)
 import Language.Bitcoin.Utils (requiredContextValue)
 
+
 data CompilerError
     = FreeVariable Text
     | CompilerError Miniscript
@@ -49,7 +49,9 @@ data CompilerError
     | AbstractKey KeyDescriptor
     deriving (Eq, Show)
 
+
 instance Exception CompilerError
+
 
 -- | Type check and compile a miniscript
 compile :: Miniscript -> Either CompilerError Script
@@ -57,17 +59,22 @@ compile script = do
     void . first TypeError $ typeCheckMiniscript mempty script
     compileOnly script
 
+
 -- | Compile a miniscript without type checking
 compileOnly :: Miniscript -> Either CompilerError Script
 compileOnly = fmap Script . runExcept . (`runReaderT` Context mempty) . compileOpsInContext
 
+
 newtype Context = Context {unContext :: Map Text (Context, Miniscript)}
+
 
 addClosure :: Text -> Miniscript -> Context -> Context
 addClosure n e c = Context . Map.insert n (c, e) $ unContext c
 
+
 requiredScript :: Text -> ReaderT Context (Except CompilerError) (Context, Miniscript)
 requiredScript name = requiredContextValue unContext (FreeVariable name) name
+
 
 compileOpsInContext :: Miniscript -> ReaderT Context (Except CompilerError) [ScriptOp]
 compileOpsInContext = \case
@@ -189,6 +196,7 @@ compileOpsInContext = \case
     requiredBytes = required $ \case
         Bytes b -> return b
         e -> typeError e
+
 
 unsnoc :: [a] -> ([a], a)
 unsnoc [] = error "unsnoc: empty list"

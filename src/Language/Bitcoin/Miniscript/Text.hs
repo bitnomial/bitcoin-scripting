@@ -8,15 +8,15 @@ module Language.Bitcoin.Miniscript.Text (
 
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Haskoin.Constants (Network)
+import Haskoin.Network (Network)
 import Haskoin.Util (encodeHex)
-
 import Language.Bitcoin.Miniscript.Syntax (
     Miniscript (..),
     Value (..),
  )
 import Language.Bitcoin.Script.Descriptors.Text (keyDescriptorToText)
 import Language.Bitcoin.Utils (applicationText, showText)
+
 
 miniscriptToText :: Network -> Miniscript -> Text
 miniscriptToText net = \case

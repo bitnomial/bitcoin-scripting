@@ -18,20 +18,11 @@ import Data.Bool (bool)
 import qualified Data.ByteString as BS
 import Data.Maybe (fromMaybe, isJust)
 import Data.Text (Text, pack)
-import Haskoin (
-    DerivPath,
-    DerivPathI (..),
-    Network,
-    fromWif,
-    importPubKey,
-    textToAddr,
-    textToFingerprint,
-    wrapPubKey,
-    xPubImport,
- )
-
-import Data.Serialize (decode)
 import qualified Data.Text as Text
+import Haskoin.Address (textToAddr)
+import Haskoin.Crypto (DerivPath, DerivPathI (..), fromWif, importPubKey, textToFingerprint, wrapPubKey, xPubImport)
+import Haskoin.Network (Network)
+import Haskoin.Util (unmarshal)
 import Language.Bitcoin.Script.Descriptors.Checksum (
     descriptorChecksum,
     validDescriptorChecksum,
@@ -44,9 +35,11 @@ import Language.Bitcoin.Utils (
     braces,
     brackets,
     comma,
+    globalContext,
     hex,
     maybeFail,
  )
+
 
 -- | An 'OutputDescriptor' with checksum details
 data ChecksumDescriptor = ChecksumDescriptor
@@ -59,20 +52,23 @@ data ChecksumDescriptor = ChecksumDescriptor
     }
     deriving (Eq, Show)
 
+
 -- | The status of an output descriptor's checksum
 data ChecksumStatus
     = -- | Checksum provided is valid
       Valid
     | -- | Checksum provided is invalid
       Invalid
+        -- | The invalid checksum
         Text
-        -- ^ The invalid checksum
     | -- | Checksum is not provided
       Absent
     deriving (Eq, Show)
 
+
 parseDescriptor :: Network -> Text -> Either String ChecksumDescriptor
 parseDescriptor = A.parseOnly . outputDescriptorParser
+
 
 outputDescriptorParser :: Network -> Parser ChecksumDescriptor
 outputDescriptorParser net =
@@ -104,6 +100,7 @@ outputDescriptorParser net =
         application "addr" (A.manyTill A.anyChar $ A.char ')')
             >>= maybeFail "descriptorParser: unable to parse address" Addr . textToAddr net . pack
 
+
 scriptDescriptorParser :: Network -> Parser ScriptDescriptor
 scriptDescriptorParser net = pkP <|> pkhP <|> rawP <|> multiP <|> sortedMultiP
   where
@@ -118,8 +115,10 @@ scriptDescriptorParser net = pkP <|> pkhP <|> rawP <|> multiP <|> sortedMultiP
 
     keyList = argList kp
 
+
 parseKeyDescriptor :: Network -> Text -> Either String KeyDescriptor
 parseKeyDescriptor net = A.parseOnly $ keyDescriptorParser net
+
 
 keyDescriptorParser :: Network -> Parser KeyDescriptor
 keyDescriptorParser net = KeyDescriptor <$> originP <*> keyP
@@ -134,19 +133,20 @@ keyDescriptorParser net = KeyDescriptor <$> originP <*> keyP
 
     xOnlyPubP = do
         bs <- hex
-        either fail (return . XOnlyPub) $ decode bs
+        either fail (return . XOnlyPub) $ unmarshal globalContext bs
 
     pubP = do
         bs <- hex
-        maybeFail "Unable to parse pubkey" (toPubKey bs) $ importPubKey bs
+        maybeFail "Unable to parse pubkey" (toPubKey bs) $ importPubKey globalContext bs
 
-    toPubKey bs = Pubkey . wrapPubKey (isCompressed bs)
+    toPubKey bs = PubKey . wrapPubKey (isCompressed bs)
     isCompressed bs = BS.length bs == 33
 
     wifP = A.many1' alphanum >>= maybeFail "Unable to parse WIF secret key" SecretKey . fromWif net . pack
-    xpubP = A.many1' alphanum >>= maybeFail "Unable to parse xpub" id . xPubImport net . pack
+    xpubP = A.many1' alphanum >>= maybeFail "Unable to parse xpub" id . xPubImport net globalContext . pack
 
     famP = (HardKeys <$ A.string "/*'") <|> (SoftKeys <$ A.string "/*") <|> pure Single
+
 
 pathP :: Parser DerivPath
 pathP = go Deriv
@@ -159,8 +159,10 @@ pathP = go Deriv
         isHard <- isJust <$> optional (A.char '\'' <|> A.char 'h')
         return $ bool (d :/) (d :|) isHard n
 
+
 parseTreeDescriptor :: Network -> Text -> Either String TreeDescriptor
 parseTreeDescriptor net = A.parseOnly $ treeDescriptorParser net
+
 
 treeDescriptorParser :: Network -> Parser TreeDescriptor
 treeDescriptorParser net =
@@ -168,6 +170,7 @@ treeDescriptorParser net =
         <|> braces (TapBranch <$> treeParser <*> comma treeParser)
   where
     treeParser = treeDescriptorParser net
+
 
 checksumParser :: Parser OutputDescriptor -> Parser ChecksumDescriptor
 checksumParser p = do

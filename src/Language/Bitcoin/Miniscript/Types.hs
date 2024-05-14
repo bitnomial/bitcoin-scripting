@@ -22,14 +22,15 @@ import Data.Bool (bool)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Text (Text)
-
 import Language.Bitcoin.Miniscript.Syntax (
     Miniscript (..),
     Value (..),
  )
 import Language.Bitcoin.Utils (requiredContextValue)
 
+
 {-# ANN module ("HLint: ignore Reduce duplication" :: String) #-}
+
 
 data BaseType
     = -- | Base expression
@@ -48,26 +49,29 @@ data BaseType
       TypeKeyDesc
     deriving (Eq, Show)
 
+
 notW :: BaseType -> Bool
 notW = (/= TypeW)
 
+
 -- | Type modifications that imply additional properties of the expression
 data ModField = ModField
-    { -- | Consumes exactly 0 stack elements
-      modZ :: Bool
-    , -- | One-arg: this expression always consumes exactly 1 stack element.
-      modO :: Bool
-    , -- | Nonzero: this expression always consumes at least 1 stack element, no
-      -- satisfaction for this expression requires the top input stack element to
-      -- be zero.
-      modN :: Bool
-    , -- | Dissatisfiable: a dissatisfaction for this expression can
-      -- unconditionally be constructed.
-      modD :: Bool
-    , -- | Unit: when satisfied put exactly 1 on the stack
-      modU :: Bool
+    { modZ :: Bool
+    -- ^ Consumes exactly 0 stack elements
+    , modO :: Bool
+    -- ^ One-arg: this expression always consumes exactly 1 stack element.
+    , modN :: Bool
+    -- ^ Nonzero: this expression always consumes at least 1 stack element, no
+    -- satisfaction for this expression requires the top input stack element to
+    -- be zero.
+    , modD :: Bool
+    -- ^ Dissatisfiable: a dissatisfaction for this expression can
+    -- unconditionally be constructed.
+    , modU :: Bool
+    -- ^ Unit: when satisfied put exactly 1 on the stack
     }
     deriving (Eq, Show)
+
 
 data MiniscriptType = MiniscriptType
     { baseType :: BaseType
@@ -75,8 +79,10 @@ data MiniscriptType = MiniscriptType
     }
     deriving (Eq, Show)
 
+
 emptyModField :: ModField
 emptyModField = ModField False False False False False
+
 
 boolType :: Bool -> MiniscriptType
 boolType = MiniscriptType TypeB . bool falseMods trueMods
@@ -84,14 +90,18 @@ boolType = MiniscriptType TypeB . bool falseMods trueMods
     trueMods = emptyModField{modZ = True, modU = True}
     falseMods = emptyModField{modZ = True, modU = True, modD = True}
 
+
 numberType :: MiniscriptType
 numberType = MiniscriptType TypeNumber emptyModField
+
 
 bytesType :: MiniscriptType
 bytesType = MiniscriptType TypeBytes emptyModField
 
+
 keyDescriptorType :: MiniscriptType
 keyDescriptorType = MiniscriptType TypeKeyDesc emptyModField
+
 
 data MiniscriptTypeError
     = MiniscriptTypeError Miniscript
@@ -100,10 +110,13 @@ data MiniscriptTypeError
       WrongVariableType Text BaseType MiniscriptType
     deriving (Eq, Show)
 
+
 type TypeCheckM a = ReaderT (Map Text MiniscriptType) (Except MiniscriptTypeError) a
+
 
 requiredVarType :: Text -> TypeCheckM MiniscriptType
 requiredVarType name = requiredContextValue id (UntypedVariable name) name
+
 
 -- | Check that a miniscript expression is well-typed.
 typeCheckMiniscript ::
@@ -112,6 +125,7 @@ typeCheckMiniscript ::
     Miniscript ->
     Either MiniscriptTypeError MiniscriptType
 typeCheckMiniscript context = runExcept . (`runReaderT` context) . typeCheckInContext
+
 
 typeCheckInContext :: Miniscript -> TypeCheckM MiniscriptType
 typeCheckInContext = \case
@@ -263,7 +277,7 @@ typeCheckInContext = \case
             count f = sum . fmap (bool 0 1 . f)
             isDU m = modD m && modU m
 
-        if baseType tx == TypeB && all (== TypeW) (baseType <$> tys) && all isDU allMods
+        if baseType tx == TypeB && all ((== TypeW) . baseType) tys && all isDU allMods
             then
                 exprType
                     TypeB

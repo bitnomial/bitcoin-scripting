@@ -4,16 +4,7 @@ module Test.Miniscript.Types (
     typeCheckerTests,
 ) where
 
-import Haskoin.Util.Arbitrary.Keys (arbitraryKeyPair)
-import Haskoin.Util.Arbitrary.Util (arbitraryBSn)
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.QuickCheck (
-    Gen,
-    forAll,
-    testProperty,
-    (===),
- )
-
+import Haskoin.Util.Arbitrary (arbitraryBSn, arbitraryKeyPair)
 import Language.Bitcoin.Miniscript (
     BaseType (..),
     Miniscript (..),
@@ -28,12 +19,25 @@ import Test.Miniscript.Examples (
     example7,
     example8,
  )
+import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.QuickCheck (
+    Gen,
+    forAll,
+    testProperty,
+    (===),
+ )
+import Test.Utils (globalContext)
+
+
 
 typeCheckerTests :: TestTree
 typeCheckerTests = testGroup "type checker" [localPolicy, offeredPolicy, receivedPolicy]
 
+
 arbitraryKey :: Gen KeyDescriptor
-arbitraryKey = pubKey . snd <$> arbitraryKeyPair
+arbitraryKey = pubKey . snd <$> arbitraryKeyPair globalContext
+
+
 
 localPolicy :: TestTree
 localPolicy = testProperty "bolt3 local policy" $
@@ -47,6 +51,7 @@ localPolicy = testProperty "bolt3 local policy" $
             , ("key_revocation", KeyDesc rev)
             ]
             $ script example6
+
 
 offeredPolicy :: TestTree
 offeredPolicy = testProperty "bolt 3 offered policy" $
@@ -64,6 +69,7 @@ offeredPolicy = testProperty "bolt 3 offered policy" $
             , ("H", Bytes h)
             ]
             $ script example7
+
 
 receivedPolicy :: TestTree
 receivedPolicy = testProperty "bolt 3 received policy" $
