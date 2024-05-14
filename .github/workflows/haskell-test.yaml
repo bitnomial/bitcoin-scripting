@@ -1,0 +1,65 @@
+---
+name: Haskell Test
+
+on:
+  pull_request:
+    paths:
+      - bitcoin-scripting.cabal
+      - "src/**.hs"
+      - "test/**.hs"
+      - .github/workflows/haskell-test.yaml
+    types:
+      - synchronize
+      - opened
+      - reopened
+      - ready_for_review
+  push:
+    branches:
+      - master
+    paths:
+      - bitcoin-scripting.cabal
+      - "src/**.hs"
+      - "test/**.hs"
+      - .github/workflows/haskell-test.yaml
+  workflow_dispatch:
+    inputs: {}
+
+jobs:
+  haskell-test:
+    if: github.event.pull_request.draft == false || github.ref == 'refs/heads/master'
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-haskell-test
+      cancel-in-progress: true
+
+    permissions:
+      contents: read
+      packages: read
+      issues: read
+      checks: write
+
+    runs-on:
+      labels: ubuntu-22.04-16cores
+    container:
+      image: haskell:9.6.5
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: apt
+        run: |
+          apt update
+          apt install libsecp256k1-dev
+
+      - name: cabal build
+        run: |
+          cabal update
+          cabal build
+
+      - name: cabal test
+        run: |
+          cabal test
